@@ -9,174 +9,329 @@ import SwiftUI
 import MLXLMCommon
 
 struct ModelManagementView: View {
-    @StateObject private var modelManager = ModelManager()
+    @StateObject private var modelManager = ModelManager.shared
     @State private var selectedModel: ModelConfiguration?
+    @State private var downloadingModels: Set<String> = []
+    @State private var downloadProgress: [String: Double] = [:]
     
     var body: some View {
-        NavigationView {
-            if DeviceUtils.isSimulator {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Header
                 VStack(spacing: 20) {
-                    Image(systemName: "exclamationmark.triangle.fill")
+                    Image(systemName: "cpu")
                         .font(.system(size: 60))
-                        .foregroundColor(.orange)
+                        .foregroundStyle(.primary)
                     
-                    Text("Simulator Detected")
-                        .font(.title)
-                        .fontWeight(.bold)
-                    
-                    Text("MLX models require Apple Silicon hardware.\nPlease run this app on:")
-                        .multilineTextAlignment(.center)
-                        .foregroundColor(.secondary)
-                    
-                    VStack(alignment: .leading, spacing: 10) {
-                        Label("iPhone 15 Pro or later", systemImage: "iphone")
-                        Label("iPad with M-series chip", systemImage: "ipad")
-                        Label("Mac with Apple Silicon", systemImage: "macbook")
+                    VStack(spacing: 8) {
+                        Text("AI Models")
+                            .font(.title)
+                            .fontWeight(.bold)
+                        
+                        Text("Download and manage AI models for offline use")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
                     }
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
                 }
-                .padding()
-                .navigationTitle("Models")
-            } else {
-                List {
+                .padding(.top, 20)
+                .padding(.bottom, 10)
+                
+                // Device compatibility check
+                if DeviceUtils.isSimulator {
+                    DeviceCompatibilityWarning()
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+                } else if !DeviceUtils.canRunMLX {
+                    DeviceCompatibilityCard()
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 20)
+                }
+                
+                // Models list
+                VStack(spacing: 12) {
                     ForEach(ModelConfiguration.availableModels, id: \.name) { model in
-                        ModelRowView(
+                        ModelCard(
                             model: model,
-                            modelManager: modelManager,
-                            isSelected: selectedModel?.name == model.name
-                        )
-                        .onTapGesture {
-                            if modelManager.isModelDownloaded(model) {
-                                selectedModel = model
-                                modelManager.setActiveModel(model)
+                            isSelected: modelManager.activeModel?.name == model.name,
+                            isDownloaded: modelManager.isModelDownloaded(model),
+                            isDownloading: downloadingModels.contains(model.name),
+                            downloadProgress: downloadProgress[model.name] ?? 0.0,
+                            onSelect: {
+                                HapticManager.shared.selection()
+                                if modelManager.isModelDownloaded(model) {
+                                    modelManager.setActiveModel(model)
+                                }
+                            },
+                            onDownload: {
+                                HapticManager.shared.buttonTap()
+                                downloadModel(model)
+                            },
+                            onDelete: {
+                                HapticManager.shared.warning()
+                                deleteModel(model)
                             }
-                        }
+                        )
+                        .disabled(DeviceUtils.isSimulator || !DeviceUtils.canRunMLX)
                     }
                 }
-                .navigationTitle("Models")
-                .onAppear {
-                    selectedModel = modelManager.activeModel
-                }
-                .toolbar {
-                    #if DEBUG
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("Reset Onboarding") {
-                            UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
-                            exit(0)
-                        }
-                        .foregroundColor(.red)
-                    }
-                    #endif
-                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 30)
             }
+        }
+        .background(Color(UIColor.systemGroupedBackground))
+        .navigationTitle("Model Management")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            selectedModel = modelManager.activeModel
+        }
+    }
+    
+    private func downloadModel(_ model: ModelConfiguration) {
+        downloadingModels.insert(model.name)
+        downloadProgress[model.name] = 0.0
+        
+        Task {
+            do {
+                try await modelManager.downloadModel(model) { progress in
+                    Task { @MainActor in
+                        downloadProgress[model.name] = progress.fractionCompleted
+                    }
+                }
+                
+                await MainActor.run {
+                    downloadingModels.remove(model.name)
+                    downloadProgress.removeValue(forKey: model.name)
+                    HapticManager.shared.modelDownloadComplete()
+                }
+            } catch {
+                await MainActor.run {
+                    downloadingModels.remove(model.name)
+                    downloadProgress.removeValue(forKey: model.name)
+                    HapticManager.shared.error()
+                }
+                print("Download failed: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    private func deleteModel(_ model: ModelConfiguration) {
+        modelManager.deleteModel(model)
+        if modelManager.activeModel?.name == model.name {
+            // If deleting the active model, try to set another downloaded model as active
+            if let firstAvailableModel = ModelConfiguration.availableModels.first(where: { 
+                $0.name != model.name && modelManager.isModelDownloaded($0) 
+            }) {
+                modelManager.setActiveModel(firstAvailableModel)
+            }
+            // If no other models are downloaded, activeModel will be cleared automatically
         }
     }
 }
 
-struct ModelRowView: View {
-    let model: ModelConfiguration
-    @ObservedObject var modelManager: ModelManager
-    let isSelected: Bool
-    
-    @State private var downloadProgress: Double = 0.0
-    @State private var isDownloading = false
-    
-    func formatModelId(_ model: ModelConfiguration) -> String {
-        // Extract a readable format from the model configuration
-        let modelString = "\(model.id)"
-        if modelString.contains("mlx-community/") {
-            return modelString.replacingOccurrences(of: "mlx-community/", with: "")
+struct DeviceCompatibilityWarning: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                    .font(.title2)
+                Text("Simulator Detected")
+                    .font(.headline)
+                Spacer()
+            }
+            
+            Text("MLX models require real Apple Silicon hardware. Please run this app on a physical device.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                
+            VStack(alignment: .leading, spacing: 8) {
+                Label("iPhone 11 or later", systemImage: "iphone")
+                    .font(.caption)
+                Label("iPad with A12 chip or later", systemImage: "ipad")
+                    .font(.caption)
+                Label("Mac with Apple Silicon", systemImage: "macbook")
+                    .font(.caption)
+            }
+            .foregroundColor(.secondary)
         }
-        return modelString
+        .padding()
+        .background(Color.orange.opacity(0.1))
+        .cornerRadius(12)
+    }
+}
+
+struct ModelCard: View {
+    let model: ModelConfiguration
+    let isSelected: Bool
+    let isDownloaded: Bool
+    let isDownloading: Bool
+    let downloadProgress: Double
+    let onSelect: () -> Void
+    let onDownload: () -> Void
+    let onDelete: () -> Void
+    
+    private var modelSize: String {
+        switch model.name {
+        case ModelConfiguration.llama3_2_1B.name:
+            return "0.7 GB"
+        case ModelConfiguration.llama3_2_3B.name:
+            return "1.8 GB"
+        default:
+            return "Size unknown"
+        }
+    }
+    
+    private var modelDescription: String {
+        switch model.name {
+        case ModelConfiguration.llama3_2_1B.name:
+            return "Fast and efficient for quick responses"
+        case ModelConfiguration.llama3_2_3B.name:
+            return "More capable for complex tasks"
+        default:
+            return "AI language model"
+        }
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(model.name)
-                        .font(.headline)
-                    Text(formatModelId(model))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                Spacer()
-                
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                }
-                
-                if modelManager.isModelDownloaded(model) {
-                    Menu {
-                        Button(role: .destructive) {
-                            modelManager.deleteModel(model)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
+        VStack(spacing: 0) {
+            Button(action: onSelect) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(formatModelName(model))
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            if model.name == ModelConfiguration.llama3_2_1B.name {
+                                Text("RECOMMENDED")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(Color.gray)
+                                    .cornerRadius(4)
+                            }
                         }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
+                        
+                        Text(modelDescription)
+                            .font(.caption)
                             .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        HStack {
+                            Image(systemName: "internaldrive")
+                                .font(.caption)
+                            Text(modelSize)
+                                .font(.caption)
+                        }
+                        .foregroundColor(.secondary)
                     }
-                } else if isDownloading {
-                    ProgressView(value: downloadProgress)
-                        .progressViewStyle(CircularProgressViewStyle())
-                        .scaleEffect(0.8)
-                } else {
-                    Button {
-                        print("Download button tapped")
-                        downloadModel()
-                    } label: {
-                        Image(systemName: "arrow.down.circle.fill")
-                            .foregroundColor(.blue)
-                            .font(.title2)
+                    
+                    Spacer()
+                    
+                    if isDownloading {
+                        VStack {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .scaleEffect(0.8)
+                            Text("\(Int(downloadProgress * 100))%")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    } else if isDownloaded {
+                        HStack(spacing: 12) {
+                            if isSelected {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.title2)
+                                    .foregroundColor(.primary)
+                            }
+                            
+                            Menu {
+                                if !isSelected {
+                                    Button(action: onSelect) {
+                                        Label("Set as Active", systemImage: "checkmark.circle")
+                                    }
+                                }
+                                Button(role: .destructive, action: onDelete) {
+                                    Label("Delete Model", systemImage: "trash")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                                    .font(.title3)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    } else {
+                        Button(action: onDownload) {
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.title2)
+                                .foregroundColor(Color(UIColor.label))
+                        }
                     }
-                    .buttonStyle(PlainButtonStyle())
                 }
+                .padding()
             }
+            .buttonStyle(PlainButtonStyle())
             
             if isDownloading && downloadProgress > 0 {
-                ProgressView(value: downloadProgress)
-                    .progressViewStyle(LinearProgressViewStyle())
-                
-                Text("\(Int(downloadProgress * 100))% downloaded")
-                    .font(.caption)
+                VStack(spacing: 8) {
+                    ProgressView(value: downloadProgress)
+                        .progressViewStyle(LinearProgressViewStyle(tint: Color(UIColor.label)))
+                    
+                    HStack {
+                        Text("Downloading...")
+                            .font(.caption)
+                        Spacer()
+                        Text("\(Int(downloadProgress * 100))%")
+                            .font(.caption)
+                    }
                     .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 12)
+            }
+            
+            if isDownloaded && !isSelected {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                    Text("Downloaded • Tap to activate")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 12)
             }
         }
-        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(UIColor.secondarySystemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isSelected ? Color(UIColor.label) : Color.clear, lineWidth: 2)
+                )
+        )
     }
     
-    private func downloadModel() {
-        print("Download button pressed for model: \(model.name)")
-        isDownloading = true
-        downloadProgress = 0.0
-        
-        Task {
-            do {
-                print("Starting download task")
-                try await modelManager.downloadModel(model) { progress in
-                    Task { @MainActor in
-                        self.downloadProgress = progress.fractionCompleted
-                        print("UI Progress update: \(self.downloadProgress)")
-                    }
-                }
-                
-                await MainActor.run {
-                    isDownloading = false
-                    downloadProgress = 0.0
-                    print("Download completed")
-                }
-            } catch {
-                await MainActor.run {
-                    isDownloading = false
-                    downloadProgress = 0.0
-                }
-                print("Download failed with error: \(error.localizedDescription)")
-            }
-        }
+    private func formatModelName(_ model: ModelConfiguration) -> String {
+        model.name
+            .replacingOccurrences(of: "mlx-community/", with: "")
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "Instruct", with: "")
+            .replacingOccurrences(of: "4bit", with: "")
+            .replacingOccurrences(of: "8bit", with: "")
+            .trimmingCharacters(in: .whitespaces)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        ModelManagementView()
     }
 }
