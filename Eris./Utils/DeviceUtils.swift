@@ -7,6 +7,7 @@
 
 import Foundation
 import UIKit
+import Metal
 
 struct DeviceUtils {
     enum DeviceType {
@@ -17,6 +18,10 @@ struct DeviceUtils {
     }
     
     enum ChipFamily {
+        case a13
+        case a14
+        case a15
+        case a16
         case a17Pro
         case a18
         case a18Pro
@@ -67,14 +72,37 @@ struct DeviceUtils {
         let model = deviceModel.lowercased()
         
         // iPhone models with compatible chips
+        // A13 - iPhone 11 series
+        if model.contains("iphone12,1") || model.contains("iphone12,3") || model.contains("iphone12,5") {
+            return .a13
+        }
+        // A14 - iPhone 12 series
+        if model.contains("iphone13,1") || model.contains("iphone13,2") || 
+           model.contains("iphone13,3") || model.contains("iphone13,4") {
+            return .a14
+        }
+        // A15 - iPhone 13 series and iPhone 14/14 Plus
+        if model.contains("iphone14,2") || model.contains("iphone14,3") || 
+           model.contains("iphone14,4") || model.contains("iphone14,5") ||
+           model.contains("iphone14,7") || model.contains("iphone14,8") {
+            return .a15
+        }
+        // A16 - iPhone 14 Pro/Pro Max and iPhone 15/15 Plus
+        if model.contains("iphone15,2") || model.contains("iphone15,3") ||
+           model.contains("iphone15,4") || model.contains("iphone15,5") {
+            return .a16
+        }
+        // A17 Pro - iPhone 15 Pro/Pro Max
         if model.contains("iphone16,1") || model.contains("iphone16,2") {
-            return .a17Pro // iPhone 15 Pro/Pro Max
+            return .a17Pro
         }
+        // A18 - iPhone 16/16 Plus
         if model.contains("iphone17,1") || model.contains("iphone17,2") {
-            return .a18 // iPhone 16/16 Plus
+            return .a18
         }
+        // A18 Pro - iPhone 16 Pro/Pro Max
         if model.contains("iphone17,3") || model.contains("iphone17,4") {
-            return .a18Pro // iPhone 16 Pro/Pro Max
+            return .a18Pro
         }
         
         // iPad models with M-series chips
@@ -120,14 +148,19 @@ struct DeviceUtils {
     }
     
     static var canRunMLX: Bool {
-        if isSimulator { return false }
-        
-        switch chipFamily {
-        case .a17Pro, .a18, .a18Pro, .m1, .m2, .m3, .m4:
-            return true
-        case .unsupported, .unknown:
+        // Check if we're in the simulator
+        if isSimulator {
             return false
         }
+        
+        // Check for Metal 3 support (same as fullmoon)
+        #if os(iOS)
+        if let device = MTLCreateSystemDefaultDevice() {
+            return device.supportsFamily(.metal3)
+        }
+        #endif
+        
+        return false
     }
     
     static var deviceDescription: String {
@@ -144,7 +177,54 @@ struct DeviceUtils {
     }
     
     static var chipDescription: String {
+        // First check if device supports Metal 3
+        #if os(iOS)
+        if let device = MTLCreateSystemDefaultDevice() {
+            if device.supportsFamily(.metal3) {
+                // Return the detected chip name with Metal 3 support indicator
+                switch chipFamily {
+                case .a13:
+                    return "A13 Bionic (Metal 3)"
+                case .a14:
+                    return "A14 Bionic (Metal 3)"
+                case .a15:
+                    return "A15 Bionic (Metal 3)"
+                case .a16:
+                    return "A16 Bionic (Metal 3)"
+                case .a17Pro:
+                    return "A17 Pro (Metal 3)"
+                case .a18:
+                    return "A18 (Metal 3)"
+                case .a18Pro:
+                    return "A18 Pro (Metal 3)"
+                case .m1:
+                    return "M1 (Metal 3)"
+                case .m2:
+                    return "M2 (Metal 3)"
+                case .m3:
+                    return "M3 (Metal 3)"
+                case .m4:
+                    return "M4 (Metal 3)"
+                case .unsupported:
+                    return "Unsupported Chip"
+                case .unknown:
+                    // Device supports Metal 3 but we don't know the exact chip
+                    return "Unknown Chip (Metal 3)"
+                }
+            }
+        }
+        #endif
+        
+        // Fallback to basic chip description
         switch chipFamily {
+        case .a13:
+            return "A13 Bionic"
+        case .a14:
+            return "A14 Bionic"
+        case .a15:
+            return "A15 Bionic"
+        case .a16:
+            return "A16 Bionic"
         case .a17Pro:
             return "A17 Pro"
         case .a18:
@@ -172,7 +252,7 @@ struct DeviceUtils {
         } else if isSimulator {
             return "Simulator detected. MLX models require real Apple Silicon hardware."
         } else {
-            return "Your device doesn't support MLX models. Compatible devices include iPhone 15 Pro or later, iPads with M-series chips, and Macs with Apple Silicon."
+            return "Your device doesn't support MLX models. MLX requires devices with Metal 3 support (A13 chip or later)."
         }
     }
     

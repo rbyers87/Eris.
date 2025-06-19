@@ -91,16 +91,19 @@ struct OnboardingDownloadView: View {
             Spacer()
             
             // Action button
-            Group {
+            VStack {
                 switch downloadState {
                 case .ready:
-                    Button(action: startDownload) {
+                    Button(action: {
+                        HapticManager.shared.buttonTap()
+                        startDownload()
+                    }) {
                         Text("Start Download")
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color(UIColor.systemBackground))
                             .frame(maxWidth: .infinity)
                             .frame(height: 56)
-                            .background(Color.primary)
+                            .background(Color(UIColor.label))
                             .cornerRadius(16)
                     }
                     
@@ -108,11 +111,11 @@ struct OnboardingDownloadView: View {
                     Button(action: {}) {
                         HStack {
                             ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .progressViewStyle(CircularProgressViewStyle(tint: Color(UIColor.systemBackground)))
                                 .scaleEffect(0.8)
                             Text("Downloading...")
                                 .font(.headline)
-                                .foregroundColor(.white)
+                                .foregroundColor(Color(UIColor.systemBackground))
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
@@ -122,24 +125,30 @@ struct OnboardingDownloadView: View {
                     .disabled(true)
                     
                 case .completed:
-                    Button(action: completeOnboarding) {
+                    Button(action: {
+                        HapticManager.shared.modelDownloadComplete()
+                        completeOnboarding()
+                    }) {
                         Text("Start Chatting")
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color(UIColor.systemBackground))
                             .frame(maxWidth: .infinity)
                             .frame(height: 56)
-                            .background(Color.green)
+                            .background(Color(UIColor.label))
                             .cornerRadius(16)
                     }
                     
                 case .failed:
-                    Button(action: startDownload) {
+                    Button(action: {
+                        HapticManager.shared.warning()
+                        startDownload()
+                    }) {
                         Text("Retry Download")
                             .font(.headline)
-                            .foregroundColor(.white)
+                            .foregroundColor(Color(UIColor.systemBackground))
                             .frame(maxWidth: .infinity)
                             .frame(height: 56)
-                            .background(Color.red)
+                            .background(Color.gray)
                             .cornerRadius(16)
                     }
                 }

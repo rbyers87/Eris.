@@ -13,8 +13,17 @@ struct ContentView: View {
     @Query(sort: \Thread.updatedAt, order: .reverse) private var threads: [Thread]
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     
+    private var shouldShowOnboarding: Bool {
+        #if DEBUG
+        let isPreview = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
+        return showOnboarding && !isPreview
+        #else
+        return showOnboarding
+        #endif
+    }
+    
     var body: some View {
-        if showOnboarding {
+        if shouldShowOnboarding {
             OnboardingView(showOnboarding: $showOnboarding)
         } else {
             NavigationStack {

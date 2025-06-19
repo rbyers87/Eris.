@@ -54,7 +54,7 @@ struct OnboardingModelSetupView: View {
                             isDownloaded: modelManager.isModelDownloaded(model),
                             isRecommended: model.name == ModelConfiguration.llama3_2_1B.name
                         ) {
-                            HapticManager.shared.modelSelected()
+                            HapticManager.shared.selection()
                             selectedModel = model
                         }
                         .disabled(!DeviceUtils.canRunMLX)
@@ -75,13 +75,18 @@ struct OnboardingModelSetupView: View {
                 ) {
                     Text("Download Model")
                         .font(.headline)
-                        .foregroundColor(.white)
+                        .foregroundColor(Color(UIColor.systemBackground))
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
-                        .background(selectedModel != nil ? Color.primary : Color.gray)
+                        .background(selectedModel != nil ? Color(UIColor.label) : Color.gray)
                         .cornerRadius(16)
                 }
                 .disabled(selectedModel == nil)
+                .simultaneousGesture(TapGesture().onEnded { _ in
+                    if selectedModel != nil {
+                        HapticManager.shared.buttonTap()
+                    }
+                })
                 .padding(.horizontal, 20)
                 .padding(.bottom, 30)
             }
@@ -164,7 +169,7 @@ struct ModelSelectionCard: View {
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
-                                    .background(Color.green)
+                                    .background(Color.gray)
                                     .cornerRadius(4)
                             }
                             
@@ -182,7 +187,7 @@ struct ModelSelectionCard: View {
                     VStack(alignment: .trailing, spacing: 4) {
                         if isDownloaded {
                             Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
+                                .foregroundColor(.primary)
                         } else {
                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                 .foregroundColor(isSelected ? .primary : .gray)
@@ -198,11 +203,11 @@ struct ModelSelectionCard: View {
                 if isDownloaded {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
+                            .foregroundColor(.primary)
                             .font(.caption)
                         Text("Already downloaded")
                             .font(.caption)
-                            .foregroundColor(.green)
+                            .foregroundColor(.primary)
                         Spacer()
                     }
                     .padding(.horizontal)

@@ -77,6 +77,9 @@ struct OnboardingView: View {
                         .background(Color(UIColor.label))
                         .cornerRadius(16)
                 }
+                .simultaneousGesture(TapGesture().onEnded { _ in
+                    HapticManager.shared.buttonTap()
+                })
                 .padding(.horizontal, 20)
                 .padding(.bottom, 30)
             }
