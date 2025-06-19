@@ -85,7 +85,7 @@ struct ChatView: View {
                 }) {
                     Image(systemName: "chevron.up")
                         .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(Color(UIColor.label))
                         .frame(width: 44, height: 44)
                         .background(Color(UIColor.secondarySystemBackground))
                         .clipShape(Circle())
@@ -224,12 +224,11 @@ struct MessageBubble: View {
                 Spacer(minLength: 60)
             } else {
                 // Assistant avatar
-                Image(systemName: "sparkles")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Image("AppIconNoBg")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
                     .frame(width: 24, height: 24)
-                    .background(Color.gray.opacity(0.1))
-                    .clipShape(Circle())
+                    .opacity(0.8)
             }
             
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
@@ -240,7 +239,7 @@ struct MessageBubble: View {
                         RoundedRectangle(cornerRadius: 18)
                             .fill(message.role == .user ? Color.gray : Color(UIColor.secondarySystemBackground))
                     )
-                    .foregroundStyle(message.role == .user ? Color(UIColor.systemBackground) : .primary)
+                    .foregroundStyle(message.role == .user ? .white : .primary)
                     .contextMenu {
                         Button(action: {
                             UIPasteboard.general.string = message.content
@@ -278,12 +277,11 @@ struct TypingIndicator: View {
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
             // Assistant avatar
-            Image(systemName: "sparkles")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Image("AppIconNoBg")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
                 .frame(width: 24, height: 24)
-                .background(Color.gray.opacity(0.1))
-                .clipShape(Circle())
+                .opacity(0.8)
             
             if text.isEmpty {
                 // Dots animation

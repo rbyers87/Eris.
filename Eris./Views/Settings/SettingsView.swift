@@ -13,35 +13,34 @@ struct SettingsView: View {
     @State private var showAbout = false
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Header with app icon
-                    VStack(spacing: 16) {
-                        Image("AppIconNoBg")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 80, height: 80)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-                            )
-                        
-                        VStack(spacing: 4) {
-                            Text("Eris")
-                                .font(.title2)
-                                .fontWeight(.bold)
-                            Text("Version 1.0.0")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.top, 20)
-                    .padding(.bottom, 10)
+        ScrollView {
+            VStack(spacing: 20) {
+                // Header with app icon
+                VStack(spacing: 16) {
+                    Image("AppIconNoBg")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 80, height: 80)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
                     
-                    // Settings sections
-                    VStack(spacing: 16) {
+                    VStack(spacing: 4) {
+                        Text("Eris.")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Text("Version 1.0.0")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.top, 20)
+                .padding(.bottom, 10)
+                
+                // Settings sections
+                VStack(spacing: 16) {
                         // Model Management
                         SettingsSection(title: "AI Models") {
                             NavigationLink(destination: ModelManagementView()) {
@@ -144,15 +143,14 @@ struct SettingsView: View {
                             }
                         }
                         #endif
-                    }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 30)
             }
-            .background(Color(UIColor.systemGroupedBackground))
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.inline)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 30)
         }
+        .background(Color(UIColor.systemGroupedBackground))
+        .navigationTitle("Settings")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAbout) {
             AboutView()
         }
@@ -353,7 +351,7 @@ struct AboutView: View {
                                     .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                             )
                         
-                        Text("Eris")
+                        Text("Eris.")
                             .font(.largeTitle)
                             .fontWeight(.bold)
                         
