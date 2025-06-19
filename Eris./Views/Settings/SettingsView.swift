@@ -190,6 +190,44 @@ struct SettingsView: View {
                                 Divider()
                                     .padding(.leading, 44)
                                 
+                                Button(action: {
+                                    if let url = URL(string: "https://github.com/Natxo09/Eris.") {
+                                        selectedURL = url
+                                        showSafari = true
+                                        HapticManager.shared.impact(.light)
+                                    }
+                                }) {
+                                    SettingsRow(
+                                        icon: "chevron.left.forwardslash.chevron.right",
+                                        title: "GitHub",
+                                        subtitle: "View source code",
+                                        showChevron: true
+                                    )
+                                }
+                                .buttonStyle(SettingsRowButtonStyle())
+                                
+                                Divider()
+                                    .padding(.leading, 44)
+                                
+                                Button(action: {
+                                    if let url = URL(string: "https://eris.natxo.dev") {
+                                        selectedURL = url
+                                        showSafari = true
+                                        HapticManager.shared.impact(.light)
+                                    }
+                                }) {
+                                    SettingsRow(
+                                        icon: "globe",
+                                        title: "Website",
+                                        subtitle: "Visit our website",
+                                        showChevron: true
+                                    )
+                                }
+                                .buttonStyle(SettingsRowButtonStyle())
+                                
+                                Divider()
+                                    .padding(.leading, 44)
+                                
                                 Button(action: { showCredits = true }) {
                                     SettingsRow(
                                         icon: "heart.text.square",
