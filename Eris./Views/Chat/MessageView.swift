@@ -71,7 +71,7 @@ struct MarkdownMessageView: View {
                         Text("•")
                             .foregroundStyle(.secondary)
                             .frame(width: 20, alignment: .leading)
-                        Text(block.content)
+                        Text(processInlineMarkdown(block.content))
                             .foregroundStyle(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -81,7 +81,7 @@ struct MarkdownMessageView: View {
                         Text(block.metadata ?? "")
                             .foregroundStyle(.secondary)
                             .frame(width: 20, alignment: .leading)
-                        Text(block.content)
+                        Text(processInlineMarkdown(block.content))
                             .foregroundStyle(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -155,6 +155,16 @@ struct MarkdownMessageView: View {
             } else if line.starts(with: "# ") {
                 blocks.append(MarkdownBlock(type: .header1, content: String(line.dropFirst(2))))
             }
+            // Bullet points (check before bold text)
+            else if line.starts(with: "- ") || line.starts(with: "* ") {
+                blocks.append(MarkdownBlock(type: .bulletPoint, content: String(line.dropFirst(2))))
+            }
+            // Numbered lists (check before bold text)
+            else if let match = line.firstMatch(of: /^(\d+)\.\s+(.*)/) {
+                let number = String(match.1)
+                let content = String(match.2)
+                blocks.append(MarkdownBlock(type: .numberedList, content: content, metadata: number + "."))
+            }
             // Bold text
             else if line.contains("**") {
                 let parts = line.split(separator: "**")
@@ -165,16 +175,6 @@ struct MarkdownMessageView: View {
                         blocks.append(MarkdownBlock(type: .text, content: String(part)))
                     }
                 }
-            }
-            // Bullet points
-            else if line.starts(with: "- ") || line.starts(with: "* ") {
-                blocks.append(MarkdownBlock(type: .bulletPoint, content: String(line.dropFirst(2))))
-            }
-            // Numbered lists
-            else if let match = line.firstMatch(of: /^(\d+)\.\s+(.*)/) {
-                let number = String(match.1)
-                let content = String(match.2)
-                blocks.append(MarkdownBlock(type: .numberedList, content: content, metadata: number + "."))
             }
             // Inline code
             else if line.contains("`") && !line.starts(with: "```") {
@@ -237,6 +237,71 @@ struct MarkdownMessageView: View {
         }
         
         return content
+    }
+    
+    // Process inline markdown formatting for list items
+    private func processInlineMarkdown(_ text: String) -> AttributedString {
+        var result = AttributedString(text)
+        
+        // Handle bold text (**text**)
+        do {
+            let boldPattern = #"\*\*([^*]+)\*\*"#
+            let boldRegex = try NSRegularExpression(pattern: boldPattern)
+            let nsString = text as NSString
+            let matches = boldRegex.matches(in: text, range: NSRange(location: 0, length: nsString.length))
+            
+            for match in matches.reversed() {
+                let matchRange = match.range(at: 1)
+                if let swiftRange = Range(matchRange, in: text),
+                   let attributedRange = Range(match.range, in: result) {
+                    let boldText = String(text[swiftRange])
+                    var replacement = AttributedString(boldText)
+                    replacement.font = .body.bold()
+                    result.replaceSubrange(attributedRange, with: replacement)
+                }
+            }
+        } catch {}
+        
+        // Handle italic text (*text*)
+        do {
+            let italicPattern = #"(?<!\*)\*([^*]+)\*(?!\*)"#
+            let italicRegex = try NSRegularExpression(pattern: italicPattern)
+            let nsString = result.description as NSString
+            let matches = italicRegex.matches(in: result.description, range: NSRange(location: 0, length: nsString.length))
+            
+            for match in matches.reversed() {
+                let matchRange = match.range(at: 1)
+                if let swiftRange = Range(matchRange, in: result.description),
+                   let attributedRange = Range(match.range, in: result) {
+                    let italicText = String(result.description[swiftRange])
+                    var replacement = AttributedString(italicText)
+                    replacement.font = .body.italic()
+                    result.replaceSubrange(attributedRange, with: replacement)
+                }
+            }
+        } catch {}
+        
+        // Handle inline code (`code`)
+        do {
+            let codePattern = #"`([^`]+)`"#
+            let codeRegex = try NSRegularExpression(pattern: codePattern)
+            let nsString = result.description as NSString
+            let matches = codeRegex.matches(in: result.description, range: NSRange(location: 0, length: nsString.length))
+            
+            for match in matches.reversed() {
+                let matchRange = match.range(at: 1)
+                if let swiftRange = Range(matchRange, in: result.description),
+                   let attributedRange = Range(match.range, in: result) {
+                    let codeText = String(result.description[swiftRange])
+                    var replacement = AttributedString(codeText)
+                    replacement.font = .system(.body, design: .monospaced)
+                    replacement.backgroundColor = Color.gray.opacity(0.1)
+                    result.replaceSubrange(attributedRange, with: replacement)
+                }
+            }
+        } catch {}
+        
+        return result
     }
 }
 
