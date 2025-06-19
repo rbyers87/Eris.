@@ -189,6 +189,9 @@ struct ChatView: View {
         
         // Generate response
         Task {
+            // Haptic when AI starts generating
+            HapticManager.shared.processingStart()
+            
             let response = await llmEvaluator.generate(thread: thread)
             
             // Add assistant message

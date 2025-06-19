@@ -114,6 +114,10 @@ class LLMEvaluator: ObservableObject {
                         let text = context.tokenizer.decode(tokens: tokens)
                         Task { @MainActor in
                             self.output = text
+                            // Subtle haptic feedback while generating
+                            if tokens.count % 12 == 0 {
+                                HapticManager.shared.impact(.soft)
+                            }
                         }
                     }
                     
