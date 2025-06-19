@@ -6,11 +6,16 @@
 //
 
 import SwiftUI
+import SafariServices
 
 struct SettingsView: View {
     @StateObject private var hapticManager = HapticManager.shared
     @StateObject private var modelManager = ModelManager.shared
     @State private var showAbout = false
+    @State private var showCredits = false
+    @State private var showDeveloper = false
+    @State private var showSafari = false
+    @State private var selectedURL: URL?
     @AppStorage("appTheme") private var appTheme: String = "system"
     
     var body: some View {
@@ -131,16 +136,81 @@ struct SettingsView: View {
                             }
                         }
                         
+                        // Legal
+                        SettingsSection(title: "Legal") {
+                            VStack(spacing: 0) {
+                                Button(action: {
+                                    if let url = URL(string: "https://eris-app.com/terms") {
+                                        selectedURL = url
+                                        showSafari = true
+                                        HapticManager.shared.impact(.light)
+                                    }
+                                }) {
+                                    SettingsRow(
+                                        icon: "doc.text",
+                                        title: "Terms of Use",
+                                        showChevron: true
+                                    )
+                                }
+                                .buttonStyle(SettingsRowButtonStyle())
+                                
+                                Divider()
+                                    .padding(.leading, 44)
+                                
+                                Button(action: {
+                                    if let url = URL(string: "https://eris-app.com/privacy") {
+                                        selectedURL = url
+                                        showSafari = true
+                                        HapticManager.shared.impact(.light)
+                                    }
+                                }) {
+                                    SettingsRow(
+                                        icon: "lock.shield",
+                                        title: "Privacy Policy",
+                                        showChevron: true
+                                    )
+                                }
+                                .buttonStyle(SettingsRowButtonStyle())
+                            }
+                        }
+                        
                         // About
                         SettingsSection(title: "Information") {
-                            Button(action: { showAbout = true }) {
-                                SettingsRow(
-                                    icon: "info.circle",
-                                    title: "About Eris",
-                                    showChevron: true
-                                )
+                            VStack(spacing: 0) {
+                                Button(action: { showAbout = true }) {
+                                    SettingsRow(
+                                        icon: "info.circle",
+                                        title: "About Eris",
+                                        showChevron: true
+                                    )
+                                }
+                                .buttonStyle(SettingsRowButtonStyle())
+                                
+                                Divider()
+                                    .padding(.leading, 44)
+                                
+                                Button(action: { showCredits = true }) {
+                                    SettingsRow(
+                                        icon: "heart.text.square",
+                                        title: "Credits",
+                                        subtitle: "Open source libraries",
+                                        showChevron: true
+                                    )
+                                }
+                                .buttonStyle(SettingsRowButtonStyle())
+                                
+                                Divider()
+                                    .padding(.leading, 44)
+                                
+                                Button(action: { showDeveloper = true }) {
+                                    SettingsRow(
+                                        icon: "person.crop.circle",
+                                        title: "About Developer",
+                                        showChevron: true
+                                    )
+                                }
+                                .buttonStyle(SettingsRowButtonStyle())
                             }
-                            .buttonStyle(SettingsRowButtonStyle())
                         }
                         
                         #if DEBUG
@@ -185,6 +255,17 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAbout) {
             AboutView()
+        }
+        .sheet(isPresented: $showCredits) {
+            CreditsView()
+        }
+        .sheet(isPresented: $showDeveloper) {
+            AboutDeveloperView()
+        }
+        .sheet(isPresented: $showSafari) {
+            if let url = selectedURL {
+                SafariView(url: url)
+            }
         }
     }
     
