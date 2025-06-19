@@ -84,21 +84,7 @@ struct MarkdownMessageView: View {
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(4)
                 case .codeBlock:
-                    VStack(alignment: .leading, spacing: 4) {
-                        if let language = block.metadata {
-                            Text(language)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            Text(block.content)
-                                .font(.system(.caption, design: .monospaced))
-                                .foregroundStyle(.primary)
-                                .padding()
-                        }
-                        .background(Color.gray.opacity(0.1))
-                        .cornerRadius(8)
-                    }
+                    CodeBlockView(code: block.content, language: block.metadata)
                 }
             }
         }

@@ -17,6 +17,7 @@ class LLMEvaluator: ObservableObject {
     @Published var output = ""
     @Published var modelInfo = ""
     @Published var progress = 0.0
+    @Published var tokensGenerated = 0
     
     private var modelConfiguration: ModelConfiguration?
     private let generateParameters = GenerateParameters(temperature: 0.7)
@@ -78,6 +79,7 @@ class LLMEvaluator: ObservableObject {
         
         running = true
         output = ""
+        tokensGenerated = 0
         
         do {
             let modelContainer = try await load()
@@ -114,10 +116,7 @@ class LLMEvaluator: ObservableObject {
                         let text = context.tokenizer.decode(tokens: tokens)
                         Task { @MainActor in
                             self.output = text
-                            // Subtle haptic feedback while generating
-                            if tokens.count % 12 == 0 {
-                                HapticManager.shared.impact(.soft)
-                            }
+                            self.tokensGenerated = tokens.count
                         }
                     }
                     

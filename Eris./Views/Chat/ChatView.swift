@@ -23,6 +23,8 @@ struct ChatView: View {
     @State private var showNoModelAlert = false
     @State private var keyboardHeight: CGFloat = 0
     @State private var showModelPicker = false
+    @State private var lastHapticTokenCount = 0
+    @State private var isScrolledToBottom = true
     
     var body: some View {
         VStack(spacing: 0) {
@@ -78,6 +80,13 @@ struct ChatView: View {
                     // Auto-scroll as AI generates text
                     withAnimation(.easeOut(duration: 0.2)) {
                         proxy.scrollTo("bottom", anchor: .bottom)
+                    }
+                }
+                .onChange(of: llmEvaluator.tokensGenerated) { _, newTokenCount in
+                    // Haptic feedback only if we're scrolled to bottom (user can see the new content)
+                    if isScrolledToBottom && newTokenCount > lastHapticTokenCount + 12 {
+                        HapticManager.shared.impact(.soft)
+                        lastHapticTokenCount = newTokenCount
                     }
                 }
                 .onAppear {
