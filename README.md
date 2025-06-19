@@ -26,7 +26,7 @@ Eris is a private AI chat application that runs entirely on your device using Ap
 ## Requirements
 
 - Apple Silicon Mac (M1, M2, M3, M4)
-- macOS 14.0+ / iOS 17.0+ / iPadOS 17.0+
+- macOS 14.0+ / iOS 17.6+ / iPadOS 17.6+
 - Xcode 15.0+
 - ~2-8GB free storage per model
 
