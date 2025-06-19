@@ -74,6 +74,14 @@ struct ChatView: View {
                         scrollToBottomTrigger += 1
                     }
                 }
+                .onAppear {
+                    // Scroll to bottom when view appears
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            proxy.scrollTo("bottom", anchor: .bottom)
+                        }
+                    }
+                }
             }
             
             // Input area with model selector
