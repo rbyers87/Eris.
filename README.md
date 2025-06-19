@@ -22,6 +22,10 @@ Eris is a private AI chat application that runs entirely on your device using Ap
 - 🤖 **Multiple Models** - Support for Llama, Qwen, DeepSeek, and more
 - 🎨 **Native Design** - Built with SwiftUI for a seamless Apple experience
 - 💾 **Local Storage** - Your data never leaves your device
+- 🎯 **Syntax Highlighting** - Beautiful code blocks with syntax highlighting for 100+ languages
+- 📝 **Markdown Support** - Full markdown rendering for formatted text, lists, tables, and more
+- 🌑 **Dark Mode** - Easy on your eyes, day or night
+- ☀️ **Light Mode** - Clean and bright interface for daytime use
 
 ## Requirements
 
