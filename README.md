@@ -114,6 +114,19 @@ Eris./
 └── Utils/           # Utilities and helpers
 ```
 
+## Roadmap
+
+View our roadmap and progress at [eris.natxo.dev/roadmap](https://eris.natxo.dev/roadmap)
+
+### Bug Fixes
+- [ ] Chat name only applies after exiting and re-entering the chat
+- [ ] Improve Markdown formatting for AI responses
+
+### Upcoming Features
+- [ ] Voice input/dictation support (OpenAI Whisper or similar)
+- [ ] Image support in conversations
+- [ ] Native macOS app (not iPad port)
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
