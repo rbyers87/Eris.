@@ -3,9 +3,9 @@
 <div align="center">
   <img src="Eris./Assets.xcassets/AppIconNoBg.imageset/ChatGPT Image 19 jun 2025, 09_16_02.png" width="128" height="128" alt="Eris Icon">
   
-  **Chat with AI privately on your Apple Silicon Mac**
+  **Chat with AI privately on your iPhone and iPad**
   
-  [![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20iPadOS%20%7C%20macOS-blue.svg)](https://developer.apple.com/xcode/)
+  [![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20iPadOS-blue.svg)](https://developer.apple.com/xcode/)
   [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org/)
   [![MLX](https://img.shields.io/badge/MLX-Apple%20Silicon-green.svg)](https://github.com/ml-explore/mlx)
 </div>
@@ -25,10 +25,19 @@ Eris is a private AI chat application that runs entirely on your device using Ap
 
 ## Requirements
 
-- Apple Silicon Mac (M1, M2, M3, M4)
-- macOS 14.0+ / iOS 17.6+ / iPadOS 17.6+
-- Xcode 15.0+
+### For Users
+- iPhone with A12 Bionic chip or newer (iPhone XS/XR and later)
+- iPad with A12 Bionic chip or newer
+- iOS 17.6+ / iPadOS 17.6+
 - ~2-8GB free storage per model
+
+### For Developers
+- Apple Silicon Mac (M1, M2, M3, M4)
+- macOS 14.0+
+- Xcode 15.0+
+- Physical iPhone/iPad for testing (see note below)
+
+⚠️ **Important Development Note**: iOS Simulators are not supported as MLX requires actual hardware acceleration. You'll need a physical iPhone or iPad with A12 chip or newer for testing and debugging.
 
 ## Installation
 
