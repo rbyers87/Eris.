@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var showAbout = false
     @State private var showCredits = false
     @State private var showDeveloper = false
+    @State private var showDangerZone = false
     @State private var showSafari = false
     @State private var selectedURL: URL?
     @AppStorage("appTheme") private var appTheme: String = "system"
@@ -213,6 +214,20 @@ struct SettingsView: View {
                             }
                         }
                         
+                        // Danger Zone
+                        SettingsSection(title: "Data Management") {
+                            Button(action: { showDangerZone = true }) {
+                                SettingsRow(
+                                    icon: "exclamationmark.triangle",
+                                    title: "Danger Zone",
+                                    subtitle: "Delete app data",
+                                    iconColor: .red,
+                                    showChevron: true
+                                )
+                            }
+                            .buttonStyle(SettingsRowButtonStyle())
+                        }
+                        
                         #if DEBUG
                         // Developer Options
                         SettingsSection(title: "Developer") {
@@ -266,6 +281,9 @@ struct SettingsView: View {
             if let url = selectedURL {
                 SafariView(url: url)
             }
+        }
+        .sheet(isPresented: $showDangerZone) {
+            DangerZoneView()
         }
     }
     

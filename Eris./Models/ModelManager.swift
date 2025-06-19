@@ -97,8 +97,43 @@ class ModelManager: ObservableObject {
             userDefaults.removeObject(forKey: activeModelKey)
         }
         
-        // Note: MLX doesn't provide a direct way to delete models from cache
-        // The models are stored in the system's cache directory and will be
-        // cleaned up by the system when needed
+        // Try to delete model files from disk
+        deleteModelFiles(for: model)
+    }
+    
+    func deleteAllModels() {
+        // Clear all models
+        downloadedModels.removeAll()
+        saveDownloadedModels()
+        
+        // Clear active model
+        activeModel = nil
+        userDefaults.removeObject(forKey: activeModelKey)
+        
+        // Delete all model files
+        for model in ModelConfiguration.availableModels {
+            deleteModelFiles(for: model)
+        }
+    }
+    
+    private func deleteModelFiles(for model: ModelConfiguration) {
+        let fileManager = FileManager.default
+        
+        // Try to find and delete model files in Documents/huggingface
+        if let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let modelPath = documentsPath
+                .appendingPathComponent("huggingface")
+                .appendingPathComponent("models")
+                .appendingPathComponent(model.name)
+            
+            do {
+                if fileManager.fileExists(atPath: modelPath.path) {
+                    try fileManager.removeItem(at: modelPath)
+                    print("Deleted model files at: \(modelPath)")
+                }
+            } catch {
+                print("Error deleting model files: \(error)")
+            }
+        }
     }
 }
