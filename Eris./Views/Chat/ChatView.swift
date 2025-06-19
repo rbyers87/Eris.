@@ -202,6 +202,11 @@ struct ChatView: View {
             return
         }
         
+        // Check if thread is persisted, if not, insert it now
+        if thread.modelContext == nil {
+            modelContext.insert(thread)
+        }
+        
         // Add user message
         let userMessage = Message(content: inputText, role: .user)
         thread.addMessage(userMessage)

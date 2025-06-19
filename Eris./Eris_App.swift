@@ -11,6 +11,7 @@ import SwiftData
 @main
 struct Eris_App: App {
     let modelContainer: ModelContainer
+    @AppStorage("appTheme") private var appTheme: String = "system"
     
     init() {
         do {
@@ -24,6 +25,18 @@ struct Eris_App: App {
         WindowGroup {
             ContentView()
                 .modelContainer(modelContainer)
+                .preferredColorScheme(colorScheme)
+        }
+    }
+    
+    private var colorScheme: ColorScheme? {
+        switch appTheme {
+        case "light":
+            return .light
+        case "dark":
+            return .dark
+        default:
+            return nil
         }
     }
 }

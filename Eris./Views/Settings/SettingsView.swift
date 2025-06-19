@@ -11,6 +11,7 @@ struct SettingsView: View {
     @StateObject private var hapticManager = HapticManager.shared
     @StateObject private var modelManager = ModelManager.shared
     @State private var showAbout = false
+    @AppStorage("appTheme") private var appTheme: String = "system"
     
     var body: some View {
         ScrollView {
@@ -56,6 +57,37 @@ struct SettingsView: View {
                         // Preferences
                         SettingsSection(title: "Preferences") {
                             VStack(spacing: 0) {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "moon.circle")
+                                        .font(.body)
+                                        .foregroundStyle(.primary)
+                                        .frame(width: 28, height: 28)
+                                        .background(Color.gray.opacity(0.1))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    
+                                    Text("Theme")
+                                        .font(.body)
+                                        .foregroundStyle(.primary)
+                                    
+                                    Spacer()
+                                    
+                                    Picker("Theme", selection: $appTheme) {
+                                        Text("System").tag("system")
+                                        Text("Light").tag("light")
+                                        Text("Dark").tag("dark")
+                                    }
+                                    .pickerStyle(.menu)
+                                    .tint(.primary)
+                                    .onChange(of: appTheme) { _, _ in
+                                        HapticManager.shared.selection()
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                                
+                                Divider()
+                                    .padding(.leading, 44)
+                                
                                 SettingsToggleRow(
                                     icon: "hand.tap",
                                     title: "Haptic Feedback",

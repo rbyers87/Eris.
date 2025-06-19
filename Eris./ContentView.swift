@@ -12,6 +12,8 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Thread.updatedAt, order: .reverse) private var threads: [Thread]
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+    @State private var showDeleteAlert = false
+    @State private var threadToDelete: Thread?
     
     private var shouldShowOnboarding: Bool {
         #if DEBUG
@@ -114,7 +116,8 @@ struct ContentView: View {
                                     .buttonStyle(ThreadButtonStyle())
                                     .contextMenu {
                                         Button(role: .destructive) {
-                                            deleteThread(thread)
+                                            threadToDelete = thread
+                                            showDeleteAlert = true
                                         } label: {
                                             Label("Delete", systemImage: "trash")
                                         }
@@ -164,6 +167,16 @@ struct ContentView: View {
                     }
                 )
             }
+            .alert("Delete Chat?", isPresented: $showDeleteAlert) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) {
+                    if let thread = threadToDelete {
+                        deleteThread(thread)
+                    }
+                }
+            } message: {
+                Text("This action cannot be undone.")
+            }
         }
     }
     
@@ -178,10 +191,8 @@ struct ContentView: View {
     @State private var showFloatingButton = true
     
     private func createNewThreadAndNavigate() {
-        let thread = Thread()
-        modelContext.insert(thread)
-        try? modelContext.save()
-        newThread = thread
+        // Don't create thread immediately, just navigate to new chat view
+        newThread = Thread()
         navigateToNewChat = true
     }
     
