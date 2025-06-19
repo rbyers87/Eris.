@@ -136,6 +136,26 @@ struct ModelSelectionCard: View {
             return "0.7 GB"
         case ModelConfiguration.llama3_2_3B.name:
             return "1.8 GB"
+        case ModelConfiguration.deepseekR1DistillQwen1_5B_4bit.name:
+            return "1.0 GB"
+        case ModelConfiguration.deepseekR1DistillQwen1_5B_8bit.name:
+            return "1.9 GB"
+        case ModelConfiguration.qwen2_5_0_5B.name:
+            return "0.4 GB"
+        case ModelConfiguration.qwen2_5_1_5B.name:
+            return "1.0 GB"
+        case ModelConfiguration.qwen2_5_3B.name:
+            return "2.0 GB"
+        case ModelConfiguration.gemma2_2B.name:
+            return "1.3 GB"
+        case ModelConfiguration.phi3_5Mini.name:
+            return "2.5 GB"
+        case ModelConfiguration.codeLlama7B.name:
+            return "3.9 GB"
+        case ModelConfiguration.stableCode3B.name:
+            return "1.6 GB"
+        case ModelConfiguration.mistral7B.name:
+            return "4.0 GB"
         default:
             return "Size unknown"
         }
@@ -147,6 +167,26 @@ struct ModelSelectionCard: View {
             return "Fast and efficient, perfect for quick conversations"
         case ModelConfiguration.llama3_2_3B.name:
             return "More capable, better for complex tasks"
+        case ModelConfiguration.deepseekR1DistillQwen1_5B_4bit.name:
+            return "Advanced reasoning with step-by-step thinking"
+        case ModelConfiguration.deepseekR1DistillQwen1_5B_8bit.name:
+            return "Higher precision reasoning model"
+        case ModelConfiguration.qwen2_5_0_5B.name:
+            return "Ultra-lightweight for basic tasks"
+        case ModelConfiguration.qwen2_5_1_5B.name:
+            return "Balanced performance and efficiency"
+        case ModelConfiguration.qwen2_5_3B.name:
+            return "Strong multilingual capabilities"
+        case ModelConfiguration.gemma2_2B.name:
+            return "Google's efficient instruction-following model"
+        case ModelConfiguration.phi3_5Mini.name:
+            return "Microsoft's powerful small language model"
+        case ModelConfiguration.codeLlama7B.name:
+            return "Specialized for code generation and analysis"
+        case ModelConfiguration.stableCode3B.name:
+            return "Efficient coding assistant for developers"
+        case ModelConfiguration.mistral7B.name:
+            return "Versatile and powerful for all tasks"
         default:
             return ""
         }
@@ -173,6 +213,27 @@ struct ModelSelectionCard: View {
                                     .cornerRadius(4)
                             }
                             
+                            // Model category badges
+                            if model.name.contains("DeepSeek") {
+                                Text("REASONING")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(Color.gray.opacity(0.7))
+                                    .cornerRadius(4)
+                            } else if model.name.contains("Code") || model.name.contains("stable-code") {
+                                Text("CODE")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(Color.gray.opacity(0.7))
+                                    .cornerRadius(4)
+                            }
+                            
                             Spacer()
                         }
                         
@@ -180,6 +241,19 @@ struct ModelSelectionCard: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        // Warning for large models on iPhone
+                        if (model.name.contains("7B") || model.name.contains("7b")) && UIDevice.current.userInterfaceIdiom == .phone {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.caption2)
+                                Text("May run slowly on iPhone - better suited for Mac")
+                                    .font(.caption2)
+                                Spacer()
+                            }
+                            .foregroundColor(.orange)
+                            .padding(.top, 2)
+                        }
                     }
                     
                     Spacer()
