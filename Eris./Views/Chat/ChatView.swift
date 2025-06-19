@@ -211,6 +211,9 @@ struct ChatView: View {
         let userMessage = Message(content: inputText, role: .user)
         thread.addMessage(userMessage)
         
+        // Update title after first message
+        updateTitle()
+        
         let prompt = inputText
         inputText = ""
         
@@ -219,7 +222,20 @@ struct ChatView: View {
             // Haptic when AI starts generating
             HapticManager.shared.processingStart()
             
-            let response = await llmEvaluator.generate(thread: thread)
+            let systemPrompt = """
+            You are Eris, a helpful AI assistant integrated into the Eris app - a privacy-focused iOS application that runs language models entirely on-device. 
+            
+            Key facts about yourself and the app:
+            - You run locally on the user's iPhone/iPad without any cloud connectivity
+            - All conversations are stored privately on the device
+            - You are powered by various open-source models (Llama, Qwen, Mistral, etc.)
+            - The app prioritizes user privacy and data security
+            - You support markdown formatting and code syntax highlighting
+            
+            Be helpful, concise, and privacy-conscious in your responses.
+            """
+            
+            let response = await llmEvaluator.generate(thread: thread, systemPrompt: systemPrompt)
             
             // Add assistant message
             let assistantMessage = Message(content: response, role: .assistant)
