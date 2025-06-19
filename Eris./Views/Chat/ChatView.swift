@@ -74,6 +74,12 @@ struct ChatView: View {
                         scrollToBottomTrigger += 1
                     }
                 }
+                .onChange(of: llmEvaluator.output) { _, _ in
+                    // Auto-scroll as AI generates text
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo("bottom", anchor: .bottom)
+                    }
+                }
                 .onAppear {
                     // Scroll to bottom when view appears
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -227,40 +233,72 @@ struct MessageBubble: View {
     @State private var showTimestamp = false
     
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            if message.role == .user {
+        if message.role == .user {
+            // User message with bubble on the right
+            HStack(alignment: .bottom, spacing: 8) {
                 Spacer(minLength: 60)
-            } else {
-                // Assistant avatar
-                Image("AppIconNoBg")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 24, height: 24)
-                    .opacity(0.8)
-            }
-            
-            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-                Text(message.content)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18)
-                            .fill(message.role == .user ? Color.gray : Color(UIColor.secondarySystemBackground))
-                    )
-                    .foregroundStyle(message.role == .user ? .white : .primary)
-                    .contextMenu {
-                        Button(action: {
-                            UIPasteboard.general.string = message.content
-                            HapticManager.shared.notification(.success)
-                        }) {
-                            Label("Copy", systemImage: "doc.on.doc")
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    MessageView(content: message.content, isUser: true)
+                        .contextMenu {
+                            Button(action: {
+                                UIPasteboard.general.string = message.content
+                                HapticManager.shared.notification(.success)
+                            }) {
+                                Label("Copy", systemImage: "doc.on.doc")
+                            }
                         }
+                    
+                    if showTimestamp {
+                        Text(message.timestamp.formatted(date: .omitted, time: .shortened))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .transition(.scale.combined(with: .opacity))
                     }
+                }
+                .onTapGesture {
+                    HapticManager.shared.impact(.light)
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showTimestamp.toggle()
+                    }
+                }
+            }
+        } else {
+            // Assistant message full width
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 10) {
+                    // Assistant avatar
+                    Image("AppIconNoBg")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 28, height: 28)
+                        .opacity(0.8)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Eris")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                        
+                        MessageView(content: message.content, isUser: false)
+                            .contextMenu {
+                                Button(action: {
+                                    UIPasteboard.general.string = message.content
+                                    HapticManager.shared.notification(.success)
+                                }) {
+                                    Label("Copy", systemImage: "doc.on.doc")
+                                }
+                            }
+                    }
+                    
+                    Spacer()
+                }
                 
                 if showTimestamp {
                     Text(message.timestamp.formatted(date: .omitted, time: .shortened))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .padding(.leading, 38)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
@@ -269,10 +307,6 @@ struct MessageBubble: View {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     showTimestamp.toggle()
                 }
-            }
-            
-            if message.role != .user {
-                Spacer(minLength: 60)
             }
         }
     }
@@ -283,53 +317,50 @@ struct TypingIndicator: View {
     @State private var animationAmount = 0.0
     
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            // Assistant avatar
-            Image("AppIconNoBg")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 24, height: 24)
-                .opacity(0.8)
-            
-            if text.isEmpty {
-                // Dots animation
-                HStack(spacing: 4) {
-                    ForEach(0..<3) { index in
-                        Circle()
-                            .fill(Color.gray)
-                            .frame(width: 8, height: 8)
-                            .scaleEffect(animationAmount)
-                            .opacity(animationAmount)
-                            .animation(
-                                .easeInOut(duration: 0.6)
-                                .repeatForever()
-                                .delay(Double(index) * 0.2),
-                                value: animationAmount
-                            )
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                // Assistant avatar
+                Image("AppIconNoBg")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 28, height: 28)
+                    .opacity(0.8)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Eris")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.secondary)
+                    
+                    if text.isEmpty {
+                        // Dots animation
+                        HStack(spacing: 4) {
+                            ForEach(0..<3) { index in
+                                Circle()
+                                    .fill(Color.gray)
+                                    .frame(width: 8, height: 8)
+                                    .scaleEffect(animationAmount)
+                                    .opacity(animationAmount)
+                                    .animation(
+                                        .easeInOut(duration: 0.6)
+                                        .repeatForever()
+                                        .delay(Double(index) * 0.2),
+                                        value: animationAmount
+                                    )
+                            }
+                        }
+                        .padding(.vertical, 8)
+                        .onAppear {
+                            animationAmount = 1.0
+                        }
+                    } else {
+                        // Streaming text
+                        MessageView(content: text, isUser: false)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(Color(UIColor.secondarySystemBackground))
-                )
-                .onAppear {
-                    animationAmount = 1.0
-                }
-            } else {
-                // Streaming text
-                Text(text)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 18)
-                            .fill(Color(UIColor.secondarySystemBackground))
-                    )
-                    .foregroundStyle(.primary)
+                
+                Spacer()
             }
-            
-            Spacer(minLength: 60)
         }
     }
 }
