@@ -33,27 +33,31 @@ struct MarkdownMessageView: View {
     let content: String
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             ForEach(parseMarkdown(content), id: \.id) { block in
                 switch block.type {
                 case .text:
                     Text(block.content)
                         .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
                 case .header1:
                     Text(block.content)
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundStyle(.primary)
+                        .padding(.top, 8)
                 case .header2:
                     Text(block.content)
                         .font(.title2)
                         .fontWeight(.bold)
                         .foregroundStyle(.primary)
+                        .padding(.top, 6)
                 case .header3:
                     Text(block.content)
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundStyle(.primary)
+                        .padding(.top, 4)
                 case .bold:
                     Text(block.content)
                         .fontWeight(.bold)
@@ -66,15 +70,21 @@ struct MarkdownMessageView: View {
                     HStack(alignment: .top, spacing: 8) {
                         Text("•")
                             .foregroundStyle(.secondary)
+                            .frame(width: 20, alignment: .leading)
                         Text(block.content)
                             .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 case .numberedList:
                     HStack(alignment: .top, spacing: 8) {
                         Text(block.metadata ?? "")
                             .foregroundStyle(.secondary)
+                            .frame(width: 20, alignment: .leading)
                         Text(block.content)
                             .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 case .code:
                     Text(block.content)
@@ -108,9 +118,11 @@ struct MarkdownMessageView: View {
                 if inCodeBlock {
                     // End code block
                     if !codeBlockContent.isEmpty {
+                        // Process code block content to handle long first-line comments
+                        let processedContent = processCodeBlockContent(codeBlockContent, language: codeBlockLanguage)
                         blocks.append(MarkdownBlock(
                             type: .codeBlock,
-                            content: codeBlockContent.trimmingCharacters(in: .newlines),
+                            content: processedContent,
                             metadata: codeBlockLanguage
                         ))
                     }
@@ -184,6 +196,47 @@ struct MarkdownMessageView: View {
         }
         
         return blocks.isEmpty ? [MarkdownBlock(type: .text, content: text)] : blocks
+    }
+    
+    // Process code block content to wrap long first-line comments
+    private func processCodeBlockContent(_ content: String, language: String?) -> String {
+        let lines = content.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard !lines.isEmpty else { return content }
+        
+        // Check if first line is a very long comment
+        let firstLine = lines[0]
+        let isComment = firstLine.starts(with: "#") || firstLine.starts(with: "//") || firstLine.starts(with: "/*")
+        
+        if isComment && firstLine.count > 80 {
+            // Wrap long first-line comments
+            var wrappedLines: [String] = []
+            let words = firstLine.split(separator: " ")
+            var currentLine = ""
+            let commentPrefix = firstLine.starts(with: "#") ? "# " : (firstLine.starts(with: "//") ? "// " : "/* ")
+            
+            for word in words {
+                if currentLine.isEmpty {
+                    currentLine = String(word)
+                } else if (currentLine + " " + word).count <= 80 {
+                    currentLine += " " + String(word)
+                } else {
+                    wrappedLines.append(currentLine)
+                    currentLine = commentPrefix + String(word)
+                }
+            }
+            if !currentLine.isEmpty {
+                wrappedLines.append(currentLine)
+            }
+            
+            // Add the rest of the lines
+            if lines.count > 1 {
+                wrappedLines.append(contentsOf: lines[1...])
+            }
+            
+            return wrappedLines.joined(separator: "\n")
+        }
+        
+        return content
     }
 }
 

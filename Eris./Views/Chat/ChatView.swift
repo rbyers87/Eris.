@@ -83,9 +83,22 @@ struct ChatView: View {
                     }
                 }
                 .onChange(of: llmEvaluator.tokensGenerated) { _, newTokenCount in
-                    // Haptic feedback only if we're scrolled to bottom (user can see the new content)
-                    if isScrolledToBottom && newTokenCount > lastHapticTokenCount + 12 {
-                        HapticManager.shared.impact(.soft)
+                    // Check if we're generating a code block
+                    let codeBlockStarts = llmEvaluator.output.components(separatedBy: "```").count - 1
+                    let isGeneratingCode = codeBlockStarts % 2 == 1
+                    
+                    // Haptic feedback only if we're scrolled to bottom and NOT generating code
+                    if isScrolledToBottom && !isGeneratingCode && newTokenCount > lastHapticTokenCount + 12 {
+                        // Alternate between different haptic patterns
+                        let hapticCount = newTokenCount / 12
+                        switch hapticCount % 3 {
+                        case 0:
+                            HapticManager.shared.impact(.soft)
+                        case 1:
+                            HapticManager.shared.impact(.light)
+                        default:
+                            HapticManager.shared.selection()
+                        }
                         lastHapticTokenCount = newTokenCount
                     }
                 }
@@ -328,6 +341,12 @@ struct TypingIndicator: View {
     let text: String
     @State private var animationAmount = 0.0
     
+    private var isGeneratingCodeBlock: Bool {
+        // Check if we have an unclosed code block
+        let codeBlockStarts = text.components(separatedBy: "```").count - 1
+        return codeBlockStarts % 2 == 1
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 10) {
@@ -364,6 +383,33 @@ struct TypingIndicator: View {
                         .padding(.vertical, 8)
                         .onAppear {
                             animationAmount = 1.0
+                        }
+                    } else if isGeneratingCodeBlock {
+                        // Show code generation indicator
+                        VStack(alignment: .leading, spacing: 8) {
+                            // Show the text before the code block
+                            if let lastCodeBlockRange = text.range(of: "```", options: .backwards) {
+                                let textBeforeCode = String(text[..<lastCodeBlockRange.lowerBound])
+                                if !textBeforeCode.isEmpty {
+                                    MessageView(content: textBeforeCode, isUser: false)
+                                }
+                            }
+                            
+                            // Code generation indicator
+                            HStack(spacing: 8) {
+                                Image(systemName: "chevron.left.forwardslash.chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text("Generating code...")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
                         }
                     } else {
                         // Streaming text

@@ -52,9 +52,10 @@ struct CodeBlockView: View {
             .background(Color.gray.opacity(0.15))
             
             // Code content with syntax highlighting
-            ScrollView(.horizontal, showsIndicators: false) {
+            ScrollView(.horizontal, showsIndicators: true) {
                 SyntaxHighlightedText(code: code, language: language ?? "")
                     .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .background(Color.gray.opacity(0.1))
         }
