@@ -115,7 +115,7 @@ This project was inspired by [Fullmoon iOS](https://github.com/mainframecomputer
 
 ## License
 
-[Add your license here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Developer
 
