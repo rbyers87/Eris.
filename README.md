@@ -119,7 +119,7 @@ Eris./
 View our roadmap and progress at [eris.natxo.dev/roadmap](https://eris.natxo.dev/roadmap)
 
 ### Bug Fixes
-- [ ] Chat name only applies after exiting and re-entering the chat
+- [x] Chat name only applies after exiting and re-entering the chat
 - [ ] Improve Markdown formatting for AI responses
 
 ### Upcoming Features
