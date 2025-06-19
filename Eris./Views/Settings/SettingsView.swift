@@ -141,7 +141,7 @@ struct SettingsView: View {
                         SettingsSection(title: "Legal") {
                             VStack(spacing: 0) {
                                 Button(action: {
-                                    if let url = URL(string: "https://eris-app.com/terms") {
+                                    if let url = URL(string: "https://eris.natxo.dev/terms") {
                                         selectedURL = url
                                         showSafari = true
                                         HapticManager.shared.impact(.light)
@@ -159,7 +159,7 @@ struct SettingsView: View {
                                     .padding(.leading, 44)
                                 
                                 Button(action: {
-                                    if let url = URL(string: "https://eris-app.com/privacy") {
+                                    if let url = URL(string: "https://eris.natxo.dev/privacy") {
                                         selectedURL = url
                                         showSafari = true
                                         HapticManager.shared.impact(.light)
