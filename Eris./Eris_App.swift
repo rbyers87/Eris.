@@ -19,6 +19,9 @@ struct Eris_App: App {
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }
+        
+        // Initialize memory manager to handle memory warnings
+        _ = MemoryManager.shared
     }
     
     var body: some Scene {

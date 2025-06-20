@@ -9,19 +9,19 @@ import SwiftUI
 import SwiftData
 import MLXLMCommon
 
+
 struct ChatView: View {
     @Environment(\.modelContext) private var modelContext
     @StateObject private var llmEvaluator = LLMEvaluator()
     @StateObject private var modelManager = ModelManager.shared
+    @StateObject private var scrollManager = ChatScrollManager()
     @FocusState private var isInputFocused: Bool
-    @State private var scrollToBottomTrigger = 0
     
     let thread: Thread
     
     @State private var inputText = ""
     @State private var isGenerating = false
     @State private var showNoModelAlert = false
-    @State private var keyboardHeight: CGFloat = 0
     @State private var showModelPicker = false
     @State private var lastHapticTokenCount = 0
     @State private var isScrolledToBottom = true
@@ -29,16 +29,17 @@ struct ChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Messages list
-            ScrollViewReader { proxy in
+            ZStack(alignment: .bottom) {
+                ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(spacing: 16) {
+                        VStack(spacing: 16) {
                         // Empty state
                         if thread.sortedMessages.isEmpty && !llmEvaluator.running {
                             EmptyChatView()
                                 .padding(.top, 100)
                         }
                         
-                        // Messages
+                        // Messages - LazyVStack only renders visible messages
                         ForEach(thread.sortedMessages, id: \.id) { message in
                             MessageBubble(message: message)
                                 .id(message.id)
@@ -54,33 +55,53 @@ struct ChatView: View {
                                 .transition(.scale.combined(with: .opacity))
                         }
                         
-                        // Bottom spacer for scroll
-                        Color.clear
-                            .frame(height: 20)
-                            .id("bottom")
+                        // Bottom anchor for scrolling
+                        GeometryReader { geometry in
+                            Color.clear
+                                .id("bottom")
+                                .onChange(of: geometry.frame(in: .global).minY) { _, minY in
+                                    // Check if bottom is visible
+                                    let screenHeight = UIScreen.main.bounds.height
+                                    let isBottomVisible = minY < screenHeight && minY > 0
+                                    
+                                    scrollManager.showScrollToBottomButton = !isBottomVisible
+                                    scrollManager.isAtBottom = isBottomVisible
+                                }
+                                .onAppear {
+                                    let minY = geometry.frame(in: .global).minY
+                                    let screenHeight = UIScreen.main.bounds.height
+                                    let isBottomVisible = minY < screenHeight && minY > 0
+                                    
+                                    scrollManager.showScrollToBottomButton = !isBottomVisible
+                                    scrollManager.isAtBottom = isBottomVisible
+                                }
+                        }
+                        .frame(height: 20)
                     }
                     .padding(.horizontal)
                     .padding(.top, 20)
                 }
                 .scrollDismissesKeyboard(.interactively)
-                .onChange(of: scrollToBottomTrigger) { _, _ in
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        proxy.scrollTo("bottom", anchor: .bottom)
+                .safeAreaInset(edge: .bottom) {
+                    // This creates space for the keyboard
+                    Color.clear.frame(height: 0)
+                }
+                .onAppear {
+                    scrollManager.setProxy(proxy)
+                    scrollManager.scrollToBottomSmooth()
+                }
+                .onChange(of: thread.messages.count) { oldCount, newCount in
+                    if newCount > oldCount {
+                        scrollManager.handleNewMessage()
                     }
                 }
-                .onChange(of: thread.messages.count) { _, _ in
-                    scrollToBottomTrigger += 1
-                }
-                .onChange(of: llmEvaluator.running) { _, _ in
-                    if llmEvaluator.running {
-                        scrollToBottomTrigger += 1
+                .onChange(of: llmEvaluator.running) { _, newValue in
+                    if newValue {
+                        scrollManager.handleTypingStarted()
                     }
                 }
                 .onChange(of: llmEvaluator.output) { _, _ in
-                    // Auto-scroll as AI generates text
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo("bottom", anchor: .bottom)
-                    }
+                    scrollManager.handleContentUpdate()
                 }
                 .onChange(of: llmEvaluator.tokensGenerated) { _, newTokenCount in
                     // Check if we're generating a code block
@@ -102,14 +123,27 @@ struct ChatView: View {
                         lastHapticTokenCount = newTokenCount
                     }
                 }
-                .onAppear {
-                    // Scroll to bottom when view appears
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        withAnimation(.easeOut(duration: 0.3)) {
-                            proxy.scrollTo("bottom", anchor: .bottom)
-                        }
-                    }
                 }
+                
+                // Scroll to bottom button with slide animation
+                Button(action: {
+                    HapticManager.shared.selection()
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        scrollManager.scrollToBottom()
+                    }
+                }) {
+                    Image(systemName: "arrow.down")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Color.gray.opacity(0.9)))
+                        .shadow(color: Color.black.opacity(0.2), radius: 4, x: 0, y: 2)
+                }
+                .padding(.bottom, 16)
+                .opacity(scrollManager.showScrollToBottomButton ? 1 : 0)
+                .offset(y: scrollManager.showScrollToBottomButton ? 0 : 50)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: scrollManager.showScrollToBottomButton)
+                .allowsHitTesting(scrollManager.showScrollToBottomButton)
             }
             
             // Input area with model selector
@@ -528,7 +562,34 @@ struct EmptyChatView: View {
 
 #Preview {
     NavigationStack {
-        ChatView(thread: Thread())
+        let thread = Thread()
+        // Add sample messages
+        thread.addMessage(Message(content: "What is Eris?", role: .user))
+        thread.addMessage(Message(content: """
+            Eris is a privacy-focused AI chat application for iOS that runs entirely on your device. Here are its key features:
+            
+            **Core Features:**
+            - 🔒 100% Private - All conversations stay on your device
+            - 🚀 Hardware-accelerated using Apple Silicon and MLX framework
+            - 📡 Works completely offline without internet connection
+            - 🤖 Supports multiple open-source models (Llama, Qwen, Mistral, etc.)
+            
+            **Technical Details:**
+            - Built with SwiftUI for a native iOS experience
+            - Uses SwiftData for local data persistence
+            - Requires iPhone/iPad with A12 Bionic chip or newer
+            - Models are downloaded from Hugging Face and cached locally
+            
+            **Privacy Guarantee:**
+            - No telemetry or analytics
+            - No network requests except for initial model downloads
+            - Full data deletion available in settings
+            - Your conversations never leave your device
+            
+            Eris challenges the notion that AI must live in the cloud, bringing powerful language models directly to your pocket while maintaining complete privacy.
+            """, role: .assistant))
+        
+        return ChatView(thread: thread)
             .modelContainer(for: [Thread.self, Message.self], inMemory: true)
     }
 }

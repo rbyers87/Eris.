@@ -104,30 +104,18 @@ struct SyntaxHighlightedText: View {
     }
     
     private func highlightKeywords(in attributedString: NSMutableAttributedString, language: String) {
-        let keywords: [String]
-        
-        switch language.lowercased() {
-        case "swift":
-            keywords = ["func", "var", "let", "if", "else", "for", "while", "return", "class", "struct", "enum", "protocol", "import", "private", "public", "internal", "static", "override", "init", "self", "true", "false", "nil", "@Published", "@State", "@StateObject", "@ObservedObject", "@Binding", "@Environment", "async", "await", "try", "catch", "throws"]
-        case "python":
-            keywords = ["def", "class", "if", "else", "elif", "for", "while", "return", "import", "from", "as", "try", "except", "finally", "with", "lambda", "True", "False", "None", "and", "or", "not", "in", "is", "await", "async"]
-        case "javascript", "js":
-            keywords = ["function", "var", "let", "const", "if", "else", "for", "while", "return", "class", "import", "export", "from", "new", "this", "true", "false", "null", "undefined", "async", "await", "try", "catch", "finally"]
-        case "bash", "shell":
-            keywords = ["if", "then", "else", "elif", "fi", "for", "while", "do", "done", "function", "return", "exit", "export", "source", "alias"]
-        default:
-            keywords = []
-        }
-        
         let string = attributedString.string
-        for keyword in keywords {
-            let pattern = "\\b\(keyword)\\b"
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-                let matches = regex.matches(in: string, options: [], range: NSRange(location: 0, length: string.count))
-                for match in matches {
-                    attributedString.addAttribute(.foregroundColor, value: UIColor.systemPurple, range: match.range)
-                }
+        
+        // Use cached regex for syntax highlighting
+        do {
+            let regex = try RegexCache.shared.syntaxHighlightingRegex(for: language)
+            let matches = regex.matches(in: string, options: [], range: NSRange(location: 0, length: string.count))
+            for match in matches {
+                attributedString.addAttribute(.foregroundColor, value: UIColor.systemPurple, range: match.range)
             }
+        } catch {
+            // Fallback: no keyword highlighting if regex fails
+            print("Failed to create syntax highlighting regex: \(error)")
         }
     }
     
@@ -136,11 +124,14 @@ struct SyntaxHighlightedText: View {
         let patterns = ["\"[^\"]*\"", "'[^']*'", "`[^`]*`"]
         
         for pattern in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            do {
+                let regex = try RegexCache.shared.regex(for: pattern)
                 let matches = regex.matches(in: string, options: [], range: NSRange(location: 0, length: string.count))
                 for match in matches {
                     attributedString.addAttribute(.foregroundColor, value: UIColor.systemRed, range: match.range)
                 }
+            } catch {
+                // Skip this pattern if regex fails
             }
         }
     }
@@ -154,11 +145,15 @@ struct SyntaxHighlightedText: View {
         ]
         
         for pattern in patterns {
-            if let regex = try? NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines]) {
+            do {
+                // Note: Comments need anchorsMatchLines option, so we create these directly
+                let regex = try NSRegularExpression(pattern: pattern, options: [.anchorsMatchLines])
                 let matches = regex.matches(in: string, options: [], range: NSRange(location: 0, length: string.count))
                 for match in matches {
                     attributedString.addAttribute(.foregroundColor, value: UIColor.systemGreen, range: match.range)
                 }
+            } catch {
+                // Skip this pattern if regex fails
             }
         }
     }
@@ -167,11 +162,14 @@ struct SyntaxHighlightedText: View {
         let string = attributedString.string
         let pattern = "\\b\\d+(\\.\\d+)?\\b"
         
-        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+        do {
+            let regex = try RegexCache.shared.regex(for: pattern)
             let matches = regex.matches(in: string, options: [], range: NSRange(location: 0, length: string.count))
             for match in matches {
                 attributedString.addAttribute(.foregroundColor, value: UIColor.systemBlue, range: match.range)
             }
+        } catch {
+            // Skip number highlighting if regex fails
         }
     }
 }
