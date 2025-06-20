@@ -11,9 +11,34 @@ import MLXLMCommon
 import MLXRandom
 import SwiftUI
 
+// Helper class to manage cancellation state across actor boundaries
+class CancellationToken {
+    private var _isCancelled = false
+    private let lock = NSLock()
+    
+    var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return _isCancelled
+    }
+    
+    func cancel() {
+        lock.lock()
+        defer { lock.unlock() }
+        _isCancelled = true
+    }
+    
+    func reset() {
+        lock.lock()
+        defer { lock.unlock() }
+        _isCancelled = false
+    }
+}
+
 @MainActor
 class LLMEvaluator: ObservableObject {
     @Published var running = false
+    @Published var isLoadingModel = false
     @Published var output = ""
     @Published var modelInfo = ""
     @Published var progress = 0.0
@@ -22,6 +47,7 @@ class LLMEvaluator: ObservableObject {
     private var modelConfiguration: ModelConfiguration?
     private let generateParameters = GenerateParameters(temperature: 0.7)
     private let maxTokens = 2048
+    private let cancellationToken = CancellationToken()
     
     enum LoadState {
         case idle
@@ -39,6 +65,7 @@ class LLMEvaluator: ObservableObject {
         switch loadState {
         case .idle, .failed:
             loadState = .loading
+            isLoadingModel = true
             
             // Limit GPU memory cache
             MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
@@ -55,10 +82,12 @@ class LLMEvaluator: ObservableObject {
                 
                 modelInfo = "Model loaded successfully"
                 loadState = .loaded(modelContainer)
+                isLoadingModel = false
                 return modelContainer
                 
             } catch {
                 loadState = .failed(error)
+                isLoadingModel = false
                 throw error
             }
             
@@ -74,15 +103,31 @@ class LLMEvaluator: ObservableObject {
         }
     }
     
+    func stopGeneration() {
+        cancellationToken.cancel()
+    }
+    
     func generate(thread: Thread, systemPrompt: String = "You are a helpful assistant.") async -> String {
         guard !running else { return "" }
         
         running = true
         output = ""
         tokensGenerated = 0
+        cancellationToken.reset()
         
         do {
+            // Check if model needs to be loaded
+            switch loadState {
+            case .idle, .failed:
+                isLoadingModel = true
+            case .loading:
+                isLoadingModel = true
+            case .loaded:
+                isLoadingModel = false
+            }
+            
             let modelContainer = try await load()
+            isLoadingModel = false
             
             // Prepare conversation history
             var messages: [[String: String]] = []
@@ -104,13 +149,17 @@ class LLMEvaluator: ObservableObject {
             // Generate random seed
             MLXRandom.seed(UInt64(Date.timeIntervalSinceReferenceDate * 1000))
             
-            let result = try await modelContainer.perform { context in
+            let cancellationToken = self.cancellationToken
+            
+            let result = try await modelContainer.perform { [weak self] context in
                 let input = try await context.processor.prepare(input: .init(messages: messages))
                 return try MLXLMCommon.generate(
                     input: input,
                     parameters: generateParameters,
                     context: context
                 ) { tokens in
+                    guard let self = self else { return .stop }
+                    
                     // Update output periodically
                     if tokens.count % 4 == 0 {
                         let text = context.tokenizer.decode(tokens: tokens)
@@ -120,6 +169,10 @@ class LLMEvaluator: ObservableObject {
                         }
                     }
                     
+                    // Check if we should stop generation
+                    if cancellationToken.isCancelled {
+                        return .stop
+                    }
                     return tokens.count >= maxTokens ? .stop : .more
                 }
             }

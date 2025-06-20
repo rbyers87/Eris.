@@ -165,9 +165,13 @@ struct ChatView: View {
                 ChatInputView(
                     text: $inputText,
                     isGenerating: llmEvaluator.running,
+                    isLoadingModel: llmEvaluator.isLoadingModel,
                     onSend: {
                         HapticManager.shared.messageSent()
                         sendMessage()
+                    },
+                    onStop: {
+                        llmEvaluator.stopGeneration()
                     }
                 )
                 .focused($isInputFocused)
@@ -481,7 +485,9 @@ struct TypingIndicator: View {
 struct ChatInputView: View {
     @Binding var text: String
     let isGenerating: Bool
+    let isLoadingModel: Bool
     let onSend: () -> Void
+    let onStop: () -> Void
     
     var body: some View {
         HStack(alignment: .bottom, spacing: 0) {
@@ -499,18 +505,30 @@ struct ChatInputView: View {
                 .frame(minHeight: 48)
             
             if isGenerating {
-                Button(action: {
-                    // Stop action would go here
-                }) {
-                    Image(systemName: "stop.circle.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
+                if isLoadingModel {
+                    // Show loading indicator when model is loading
+                    ProgressView()
+                        .scaleEffect(0.8)
                         .frame(width: 24, height: 24)
-                        .foregroundStyle(.primary)
+                        .padding(.trailing, 12)
+                        .padding(.bottom, 12)
+                        .transition(.scale.combined(with: .opacity))
+                } else {
+                    // Show stop button when generating text
+                    Button(action: {
+                        HapticManager.shared.impact(.medium)
+                        onStop()
+                    }) {
+                        Image(systemName: "stop.circle.fill")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 24, height: 24)
+                            .foregroundStyle(Color.red.opacity(0.8))
+                    }
+                    .padding(.trailing, 12)
+                    .padding(.bottom, 12)
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .padding(.trailing, 12)
-                .padding(.bottom, 12)
-                .transition(.scale.combined(with: .opacity))
             } else {
                 Button(action: {
                     HapticManager.shared.impact(.light)
