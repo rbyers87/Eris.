@@ -175,13 +175,20 @@ struct SettingsView: View {
                             }
                         }
                         
-                        // About
-                        SettingsSection(title: "Information") {
+                        // Support
+                        SettingsSection(title: "Report Bug or Request Feature") {
                             VStack(spacing: 0) {
-                                Button(action: { showAbout = true }) {
+                                Button(action: {
+                                    if let url = URL(string: "https://github.com/Natxo09/Eris./issues") {
+                                        selectedURL = url
+                                        showSafari = true
+                                        HapticManager.shared.impact(.light)
+                                    }
+                                }) {
                                     SettingsRow(
-                                        icon: "info.circle",
-                                        title: "About Eris",
+                                        icon: "chevron.left.forwardslash.chevron.right",
+                                        title: "GitHub Issues",
+                                        subtitle: "Report bugs or request features",
                                         showChevron: true
                                     )
                                 }
@@ -191,16 +198,30 @@ struct SettingsView: View {
                                     .padding(.leading, 44)
                                 
                                 Button(action: {
-                                    if let url = URL(string: "https://github.com/Natxo09/Eris.") {
+                                    if let url = URL(string: "https://discord.com/invite/nr2qpfzCsd") {
                                         selectedURL = url
                                         showSafari = true
                                         HapticManager.shared.impact(.light)
                                     }
                                 }) {
                                     SettingsRow(
-                                        icon: "chevron.left.forwardslash.chevron.right",
-                                        title: "GitHub",
-                                        subtitle: "View source code",
+                                        icon: "bubble.left.and.bubble.right",
+                                        title: "Discord Community",
+                                        subtitle: "Get help and suggest features",
+                                        showChevron: true
+                                    )
+                                }
+                                .buttonStyle(SettingsRowButtonStyle())
+                            }
+                        }
+                        
+                        // About
+                        SettingsSection(title: "Information") {
+                            VStack(spacing: 0) {
+                                Button(action: { showAbout = true }) {
+                                    SettingsRow(
+                                        icon: "info.circle",
+                                        title: "About Eris",
                                         showChevron: true
                                     )
                                 }
