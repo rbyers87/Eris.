@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var showAbout = false
     @State private var showCredits = false
     @State private var showDeveloper = false
+    @State private var showAboutDeveloper = false
     @State private var showDangerZone = false
     @State private var showSafari = false
     @State private var selectedURL: URL?
@@ -101,6 +102,21 @@ struct SettingsView: View {
                                     isOn: $hapticManager.hapticsEnabled
                                 )
                                 .onChange(of: hapticManager.hapticsEnabled) { _, enabled in
+                                    if enabled {
+                                        HapticManager.shared.toggleSwitch()
+                                    }
+                                }
+                                
+                                Divider()
+                                    .padding(.leading, 44)
+                                
+                                SettingsToggleRow(
+                                    icon: "hammer",
+                                    title: "Developer Mode",
+                                    subtitle: "Show advanced options",
+                                    isOn: $showDeveloper
+                                )
+                                .onChange(of: showDeveloper) { _, enabled in
                                     if enabled {
                                         HapticManager.shared.toggleSwitch()
                                     }
@@ -231,6 +247,25 @@ struct SettingsView: View {
                                     .padding(.leading, 44)
                                 
                                 Button(action: {
+                                    if let url = URL(string: "https://github.com/Natxo09/Eris.") {
+                                        selectedURL = url
+                                        showSafari = true
+                                        HapticManager.shared.impact(.light)
+                                    }
+                                }) {
+                                    SettingsRow(
+                                        icon: "chevron.left.forwardslash.chevron.right",
+                                        title: "GitHub",
+                                        subtitle: "View source code",
+                                        showChevron: true
+                                    )
+                                }
+                                .buttonStyle(SettingsRowButtonStyle())
+                                
+                                Divider()
+                                    .padding(.leading, 44)
+                                
+                                Button(action: {
                                     if let url = URL(string: "https://eris.natxo.dev") {
                                         selectedURL = url
                                         showSafari = true
@@ -262,7 +297,7 @@ struct SettingsView: View {
                                 Divider()
                                     .padding(.leading, 44)
                                 
-                                Button(action: { showDeveloper = true }) {
+                                Button(action: { showAboutDeveloper = true }) {
                                     SettingsRow(
                                         icon: "person.crop.circle",
                                         title: "About Developer",
@@ -287,9 +322,9 @@ struct SettingsView: View {
                             .buttonStyle(SettingsRowButtonStyle())
                         }
                         
-                        #if DEBUG
                         // Developer Options
-                        SettingsSection(title: "Developer") {
+                        if showDeveloper {
+                            SettingsSection(title: "Developer") {
                             VStack(spacing: 0) {
                                 Button(action: testHaptics) {
                                     SettingsRow(
@@ -318,7 +353,7 @@ struct SettingsView: View {
                                 .buttonStyle(SettingsRowButtonStyle())
                             }
                         }
-                        #endif
+                        }
                 }
             }
             .padding(.horizontal, 20)
@@ -333,7 +368,7 @@ struct SettingsView: View {
         .sheet(isPresented: $showCredits) {
             CreditsView()
         }
-        .sheet(isPresented: $showDeveloper) {
+        .sheet(isPresented: $showAboutDeveloper) {
             AboutDeveloperView()
         }
         .sheet(isPresented: $showSafari) {
@@ -346,7 +381,6 @@ struct SettingsView: View {
         }
     }
     
-    #if DEBUG
     private func testHaptics() {
         let haptics: [(String, () -> Void)] = [
             ("Light", { HapticManager.shared.impact(.light) }),
@@ -368,7 +402,6 @@ struct SettingsView: View {
             }
         }
     }
-    #endif
 }
 
 // MARK: - Settings Components
