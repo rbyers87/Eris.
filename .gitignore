@@ -1,0 +1,14 @@
+# Xcode
+.DS_Store
+build/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+
+# Local Xcode configuration files
+xcuserdata/
+*.xcworkspace
+*.xcuserstate
+
+# Claude
+CLAUDE.md
