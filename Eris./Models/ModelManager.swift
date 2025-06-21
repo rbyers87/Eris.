@@ -11,6 +11,24 @@ import MLXLLM
 import MLXLMCommon
 import SwiftUI
 
+// Custom error types for better error handling
+enum ModelDownloadError: LocalizedError {
+    case requiresWiFi
+    case downloadFailed(String)
+    case networkUnavailable
+    
+    var errorDescription: String? {
+        switch self {
+        case .requiresWiFi:
+            return "Model downloads require a Wi-Fi connection. The MLX framework doesn't support downloading over cellular data.\n\nPlease connect to Wi-Fi to download. Once downloaded, you can use the app offline or with any connection type."
+        case .downloadFailed(let message):
+            return "Download failed: \(message)"
+        case .networkUnavailable:
+            return "No internet connection available."
+        }
+    }
+}
+
 @MainActor
 class ModelManager: ObservableObject {
     @Published var downloadedModels: Set<String> = []
@@ -56,40 +74,76 @@ class ModelManager: ObservableObject {
     func downloadModel(_ model: ModelConfiguration, progressHandler: @escaping (Progress) -> Void) async throws {
         print("Starting download for model: \(model.name)")
         
-        // Set cache limit based on device
-        let cacheLimit: Int
-        switch DeviceUtils.chipFamily {
-        case .a13, .a14:
-            cacheLimit = 32 * 1024 * 1024 // 32MB for download phase
-        default:
-            cacheLimit = 64 * 1024 * 1024 // 64MB for other devices
+        // Check network connectivity
+        if !NetworkMonitor.shared.isConnected {
+            throw ModelDownloadError.networkUnavailable
         }
-        MLX.GPU.set(cacheLimit: cacheLimit)
         
-        do {
-            // Download the model
-            print("Calling LLMModelFactory.shared.loadContainer")
-            _ = try await LLMModelFactory.shared.loadContainer(
-                configuration: model,
-                progressHandler: { progress in
-                    print("Download progress: \(progress.fractionCompleted)")
-                    progressHandler(progress)
-                }
-            )
-            
-            print("Model downloaded successfully")
-            
-            // Mark as downloaded
-            downloadedModels.insert(model.name)
-            saveDownloadedModels()
-            
-            // If no active model, set this as active
-            if activeModel == nil {
-                setActiveModel(model)
+        // Use lower cache limit for better compatibility with cellular connections
+        // Similar to Fullmoon's approach (20MB)
+        let cacheLimit = 20 * 1024 * 1024 // 20MB for all devices during download
+        MLX.GPU.set(cacheLimit: cacheLimit)
+        print("Download cache limit set to: \(cacheLimit / 1024 / 1024)MB")
+        
+        var lastError: Error?
+        let maxRetries = 3
+        let baseDelay: UInt64 = 2_000_000_000 // 2 seconds in nanoseconds
+        
+        // Retry logic with exponential backoff
+        for attempt in 0..<maxRetries {
+            if attempt > 0 {
+                let delay = baseDelay * UInt64(pow(2.0, Double(attempt - 1)))
+                print("Retrying download after \(Double(delay) / 1_000_000_000) seconds...")
+                try await Task.sleep(nanoseconds: delay)
             }
-        } catch {
-            print("Error downloading model: \(error)")
-            throw error
+            
+            do {
+                // Download the model
+                print("Download attempt \(attempt + 1) of \(maxRetries)")
+                _ = try await LLMModelFactory.shared.loadContainer(
+                    configuration: model,
+                    progressHandler: { progress in
+                        print("Download progress: \(progress.fractionCompleted)")
+                        progressHandler(progress)
+                    }
+                )
+                
+                print("Model downloaded successfully")
+                
+                // Mark as downloaded
+                downloadedModels.insert(model.name)
+                saveDownloadedModels()
+                
+                // If no active model, set this as active
+                if activeModel == nil {
+                    setActiveModel(model)
+                }
+                
+                return // Success, exit the function
+                
+            } catch {
+                lastError = error
+                print("Download attempt \(attempt + 1) failed: \(error)")
+                
+                // Check if it's the "Repository not available locally" error
+                let errorMessage = error.localizedDescription.lowercased()
+                let errorString = String(describing: error)
+                
+                if errorMessage.contains("repository not available") || 
+                   errorMessage.contains("offline mode") ||
+                   errorString.contains("offlineModeError") {
+                    // This is a known MLX framework limitation on cellular
+                    print("MLX Framework entered offline mode on cellular connection")
+                    throw ModelDownloadError.requiresWiFi
+                }
+            }
+        }
+        
+        // All retries failed
+        if let error = lastError {
+            throw ModelDownloadError.downloadFailed(error.localizedDescription)
+        } else {
+            throw ModelDownloadError.downloadFailed("Unknown error")
         }
     }
     

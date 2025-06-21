@@ -67,10 +67,11 @@ class LLMEvaluator: ObservableObject {
             loadState = .loading
             isLoadingModel = true
             
-            // Adjust GPU memory cache based on device
-            let cacheLimit = getCacheLimitForDevice()
+            // Use conservative cache limit during model loading
+            // Similar to Fullmoon's approach for better stability
+            let cacheLimit = 20 * 1024 * 1024 // 20MB during initial load
             MLX.GPU.set(cacheLimit: cacheLimit)
-            print("GPU cache limit set to: \(cacheLimit / 1024 / 1024)MB")
+            print("GPU cache limit set to: \(cacheLimit / 1024 / 1024)MB for model loading")
             
             do {
                 // For low-memory devices, use compatibility mode
@@ -99,6 +100,12 @@ class LLMEvaluator: ObservableObject {
                 modelInfo = "Model loaded successfully"
                 loadState = .loaded(modelContainer)
                 isLoadingModel = false
+                
+                // After successful load, adjust cache based on device
+                let runtimeCacheLimit = getCacheLimitForDevice()
+                MLX.GPU.set(cacheLimit: runtimeCacheLimit)
+                print("Runtime cache limit adjusted to: \(runtimeCacheLimit / 1024 / 1024)MB")
+                
                 return modelContainer
                 
             } catch {

@@ -10,11 +10,14 @@ import MLXLMCommon
 
 struct ModelManagementView: View {
     @StateObject private var modelManager = ModelManager.shared
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     @State private var selectedModel: ModelConfiguration?
     @State private var downloadingModels: Set<String> = []
     @State private var downloadProgress: [String: Double] = [:]
     @State private var showCompatibilityWarning = false
     @State private var modelToDownload: ModelConfiguration?
+    @State private var showCellularWarning = false
+    @State private var cellularDownloadModel: ModelConfiguration?
     
     var body: some View {
         ScrollView {
@@ -39,6 +42,21 @@ struct ModelManagementView: View {
                 }
                 .padding(.top, 20)
                 .padding(.bottom, 10)
+                
+                // Network status indicator
+                if networkMonitor.isConnected {
+                    HStack(spacing: 8) {
+                        Image(systemName: networkMonitor.connectionType.icon)
+                            .foregroundColor(networkMonitor.connectionType.color)
+                        Text("Connected via \(networkMonitor.connectionType.displayName)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor.tertiarySystemBackground))
+                    .cornerRadius(8)
+                }
                 
                 // Device compatibility check
                 if DeviceUtils.isSimulator {
@@ -68,12 +86,20 @@ struct ModelManagementView: View {
                             },
                             onDownload: {
                                 HapticManager.shared.buttonTap()
-                                let compatibility = model.compatibilityForDevice()
-                                if compatibility == .risky || compatibility == .notRecommended {
-                                    modelToDownload = model
-                                    showCompatibilityWarning = true
+                                
+                                // Check for cellular warning first
+                                if networkMonitor.connectionType == .cellular {
+                                    cellularDownloadModel = model
+                                    showCellularWarning = true
                                 } else {
-                                    downloadModel(model)
+                                    // Then check device compatibility
+                                    let compatibility = model.compatibilityForDevice()
+                                    if compatibility == .risky || compatibility == .notRecommended {
+                                        modelToDownload = model
+                                        showCompatibilityWarning = true
+                                    } else {
+                                        downloadModel(model)
+                                    }
                                 }
                             },
                             onDelete: {
@@ -113,6 +139,45 @@ struct ModelManagementView: View {
                 }
             }
         }
+        .alert("Wi-Fi Required", isPresented: $showCellularWarning) {
+            Button("OK") {
+                cellularDownloadModel = nil
+            }
+        } message: {
+            Text("⚠️ Important: Model downloads require Wi-Fi\n\nThe MLX framework used by this app doesn't support downloading models over cellular connections. This is a limitation of the framework, not the app.\n\nPlease connect to Wi-Fi to download models. Once downloaded, you can use the app with cellular data (4G/5G) or completely offline.")
+        }
+    }
+    
+    private func modelSize(for model: ModelConfiguration?) -> String {
+        guard let model = model else { return "" }
+        switch model.name {
+        case ModelConfiguration.llama3_2_1B.name:
+            return "0.7 GB"
+        case ModelConfiguration.llama3_2_3B.name:
+            return "1.8 GB"
+        case ModelConfiguration.deepseekR1DistillQwen1_5B_4bit.name:
+            return "1.0 GB"
+        case ModelConfiguration.deepseekR1DistillQwen1_5B_8bit.name:
+            return "1.9 GB"
+        case ModelConfiguration.qwen2_5_0_5B.name:
+            return "0.4 GB"
+        case ModelConfiguration.qwen2_5_1_5B.name:
+            return "1.0 GB"
+        case ModelConfiguration.qwen2_5_3B.name:
+            return "2.0 GB"
+        case ModelConfiguration.gemma2_2B.name:
+            return "1.3 GB"
+        case ModelConfiguration.phi3_5Mini.name:
+            return "2.5 GB"
+        case ModelConfiguration.codeLlama7B.name:
+            return "3.9 GB"
+        case ModelConfiguration.stableCode3B.name:
+            return "1.6 GB"
+        case ModelConfiguration.mistral7B.name:
+            return "4.0 GB"
+        default:
+            return "Size unknown"
+        }
     }
     
     private func downloadModel(_ model: ModelConfiguration) {
@@ -139,6 +204,15 @@ struct ModelManagementView: View {
                     HapticManager.shared.error()
                 }
                 print("Download failed: \(error.localizedDescription)")
+                
+                // Show specific error message to user
+                Task { @MainActor in
+                    var errorMessage = "Download failed"
+                    if let modelError = error as? ModelDownloadError {
+                        errorMessage = modelError.localizedDescription
+                    }
+                    // You might want to show an alert here with the error message
+                }
             }
         }
     }

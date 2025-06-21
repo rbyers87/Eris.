@@ -13,10 +13,12 @@ struct OnboardingDownloadView: View {
     let selectedModel: ModelConfiguration
     
     @StateObject private var modelManager = ModelManager.shared
+    @StateObject private var networkMonitor = NetworkMonitor.shared
     @State private var downloadProgress: Double = 0.0
     @State private var downloadState: DownloadState = .ready
     @State private var errorMessage: String?
     @State private var showCompatibilityWarning = false
+    @State private var showCellularWarning = false
     
     enum DownloadState {
         case ready
@@ -99,6 +101,22 @@ struct OnboardingDownloadView: View {
                     }
                 }
                 
+                // Show network status if on cellular
+                if downloadState == .ready && networkMonitor.connectionType == .cellular {
+                    HStack(spacing: 8) {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .foregroundColor(.orange)
+                        Text("Cellular connection detected")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(8)
+                    .padding(.top, 8)
+                }
+                
                 if let error = errorMessage {
                     Text(error)
                         .font(.caption)
@@ -116,11 +134,18 @@ struct OnboardingDownloadView: View {
                 case .ready:
                     Button(action: {
                         HapticManager.shared.buttonTap()
-                        let compatibility = selectedModel.compatibilityForDevice()
-                        if compatibility == .notRecommended {
-                            showCompatibilityWarning = true
+                        
+                        // Check cellular first
+                        if networkMonitor.connectionType == .cellular {
+                            showCellularWarning = true
                         } else {
-                            startDownload()
+                            // Then check compatibility
+                            let compatibility = selectedModel.compatibilityForDevice()
+                            if compatibility == .notRecommended {
+                                showCompatibilityWarning = true
+                            } else {
+                                startDownload()
+                            }
                         }
                     }) {
                         Text("Start Download")
@@ -206,6 +231,42 @@ struct OnboardingDownloadView: View {
                 Text("⚠️ This model may cause issues on your \(DeviceUtils.deviceDescription).\n\nYou might experience crashes or very slow performance. Make sure to close all other apps before proceeding.\n\nConsider selecting a smaller model for better stability.")
             }
         }
+        .alert("Wi-Fi Required", isPresented: $showCellularWarning) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("⚠️ Wi-Fi Required for Downloads\n\nThe MLX framework doesn't support downloading models over cellular connections. This is a technical limitation of the framework.\n\nPlease connect to Wi-Fi to download the model. After downloading, you can use Eris with 4G, 5G, or even offline - you only need Wi-Fi for the initial download.")
+        }
+    }
+    
+    private var modelSize: String {
+        switch selectedModel.name {
+        case ModelConfiguration.llama3_2_1B.name:
+            return "0.7 GB"
+        case ModelConfiguration.llama3_2_3B.name:
+            return "1.8 GB"
+        case ModelConfiguration.deepseekR1DistillQwen1_5B_4bit.name:
+            return "1.0 GB"
+        case ModelConfiguration.deepseekR1DistillQwen1_5B_8bit.name:
+            return "1.9 GB"
+        case ModelConfiguration.qwen2_5_0_5B.name:
+            return "0.4 GB"
+        case ModelConfiguration.qwen2_5_1_5B.name:
+            return "1.0 GB"
+        case ModelConfiguration.qwen2_5_3B.name:
+            return "2.0 GB"
+        case ModelConfiguration.gemma2_2B.name:
+            return "1.3 GB"
+        case ModelConfiguration.phi3_5Mini.name:
+            return "2.5 GB"
+        case ModelConfiguration.codeLlama7B.name:
+            return "3.9 GB"
+        case ModelConfiguration.stableCode3B.name:
+            return "1.6 GB"
+        case ModelConfiguration.mistral7B.name:
+            return "4.0 GB"
+        default:
+            return "Size unknown"
+        }
     }
     
     private var statusTitle: String {
@@ -259,7 +320,14 @@ struct OnboardingDownloadView: View {
             } catch {
                 await MainActor.run {
                     downloadState = .failed
-                    errorMessage = error.localizedDescription
+                    
+                    // Provide more specific error messages
+                    if let modelError = error as? ModelDownloadError {
+                        errorMessage = modelError.localizedDescription
+                    } else {
+                        errorMessage = error.localizedDescription
+                    }
+                    
                     HapticManager.shared.error()
                 }
             }
