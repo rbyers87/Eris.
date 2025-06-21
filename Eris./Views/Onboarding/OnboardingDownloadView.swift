@@ -20,6 +20,10 @@ struct OnboardingDownloadView: View {
     @State private var showCompatibilityWarning = false
     @State private var showCellularWarning = false
     
+    private var selectedAIModel: AIModel? {
+        AIModelsRegistry.shared.modelByConfiguration(selectedModel)
+    }
+    
     enum DownloadState {
         case ready
         case downloading
@@ -83,19 +87,19 @@ struct OnboardingDownloadView: View {
                     .padding(.horizontal, 40)
                 
                 // Compatibility warning
-                if downloadState == .ready {
-                    let compatibility = selectedModel.compatibilityForDevice()
+                if downloadState == .ready, let aiModel = selectedAIModel {
+                    let compatibility = AIModelsRegistry.shared.compatibilityForModel(aiModel)
                     if compatibility == .risky || compatibility == .notRecommended {
                         HStack(spacing: 8) {
-                            Image(systemName: selectedModel.compatibilityIcon)
-                                .foregroundColor(selectedModel.compatibilityColor)
-                            Text(selectedModel.compatibilityDescription)
+                            Image(systemName: compatibility.icon)
+                                .foregroundColor(compatibility.color)
+                            Text(compatibility.description)
                                 .font(.caption)
-                                .foregroundColor(selectedModel.compatibilityColor)
+                                .foregroundColor(compatibility.color)
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(selectedModel.compatibilityColor.opacity(0.1))
+                        .background(compatibility.color.opacity(0.1))
                         .cornerRadius(8)
                         .padding(.top, 8)
                     }
@@ -140,9 +144,13 @@ struct OnboardingDownloadView: View {
                             showCellularWarning = true
                         } else {
                             // Then check compatibility
-                            let compatibility = selectedModel.compatibilityForDevice()
-                            if compatibility == .notRecommended {
-                                showCompatibilityWarning = true
+                            if let aiModel = selectedAIModel {
+                                let compatibility = AIModelsRegistry.shared.compatibilityForModel(aiModel)
+                                if compatibility == .notRecommended {
+                                    showCompatibilityWarning = true
+                                } else {
+                                    startDownload()
+                                }
                             } else {
                                 startDownload()
                             }
@@ -209,12 +217,14 @@ struct OnboardingDownloadView: View {
         .navigationBarBackButtonHidden(downloadState == .downloading || downloadState == .completed)
         .onAppear {
             // Check compatibility before auto-starting
-            let compatibility = selectedModel.compatibilityForDevice()
-            if downloadState == .ready {
-                if compatibility == .risky || compatibility == .notRecommended {
-                    // Don't auto-start for risky models, let user decide
-                } else {
-                    startDownload()
+            if let aiModel = selectedAIModel {
+                let compatibility = AIModelsRegistry.shared.compatibilityForModel(aiModel)
+                if downloadState == .ready {
+                    if compatibility == .risky || compatibility == .notRecommended {
+                        // Don't auto-start for risky models, let user decide
+                    } else {
+                        startDownload()
+                    }
                 }
             }
         }
@@ -224,11 +234,13 @@ struct OnboardingDownloadView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            let compatibility = selectedModel.compatibilityForDevice()
-            if compatibility == .notRecommended {
-                Text("⚠️ WARNING: High Crash Risk!\n\nThis model requires more memory than your \(DeviceUtils.deviceDescription) can reliably provide. The app will likely crash when trying to load this model.\n\nWe strongly recommend going back and selecting a smaller model (0.5B or 1B).")
-            } else {
-                Text("⚠️ This model may cause issues on your \(DeviceUtils.deviceDescription).\n\nYou might experience crashes or very slow performance. Make sure to close all other apps before proceeding.\n\nConsider selecting a smaller model for better stability.")
+            if let aiModel = selectedAIModel {
+                let compatibility = AIModelsRegistry.shared.compatibilityForModel(aiModel)
+                if compatibility == .notRecommended {
+                    Text("⚠️ WARNING: High Crash Risk!\n\nThis model requires more memory (~\(aiModel.estimatedRAMUsage)MB) than your \(DeviceUtils.deviceDescription) can reliably provide. The app will likely crash when trying to load this model.\n\nWe strongly recommend going back and selecting a smaller model (0.5B or 1B).")
+                } else {
+                    Text("⚠️ This model may cause issues on your \(DeviceUtils.deviceDescription).\n\nIt requires ~\(aiModel.estimatedRAMUsage)MB of RAM. You might experience crashes or very slow performance. Make sure to close all other apps before proceeding.\n\nConsider selecting a smaller model for better stability.")
+                }
             }
         }
         .alert("Wi-Fi Required", isPresented: $showCellularWarning) {
@@ -239,34 +251,11 @@ struct OnboardingDownloadView: View {
     }
     
     private var modelSize: String {
-        switch selectedModel.name {
-        case ModelConfiguration.llama3_2_1B.name:
-            return "0.7 GB"
-        case ModelConfiguration.llama3_2_3B.name:
-            return "1.8 GB"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_4bit.name:
-            return "1.0 GB"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_8bit.name:
-            return "1.9 GB"
-        case ModelConfiguration.qwen2_5_0_5B.name:
-            return "0.4 GB"
-        case ModelConfiguration.qwen2_5_1_5B.name:
-            return "1.0 GB"
-        case ModelConfiguration.qwen2_5_3B.name:
-            return "2.0 GB"
-        case ModelConfiguration.gemma2_2B.name:
-            return "1.3 GB"
-        case ModelConfiguration.phi3_5Mini.name:
-            return "2.5 GB"
-        case ModelConfiguration.codeLlama7B.name:
-            return "3.9 GB"
-        case ModelConfiguration.stableCode3B.name:
-            return "1.6 GB"
-        case ModelConfiguration.mistral7B.name:
-            return "4.0 GB"
-        default:
-            return "Size unknown"
+        if let aiModel = selectedAIModel {
+            let sizeInGB = Double(aiModel.estimatedRAMUsage) / 1024.0
+            return String(format: "%.1f GB", sizeInGB)
         }
+        return "Size unknown"
     }
     
     private var statusTitle: String {
@@ -283,9 +272,7 @@ struct OnboardingDownloadView: View {
     }
     
     private var statusDescription: String {
-        let modelName = selectedModel.name
-            .replacingOccurrences(of: "mlx-community/", with: "")
-            .replacingOccurrences(of: "-", with: " ")
+        let modelName = selectedAIModel?.displayName ?? "model"
         
         switch downloadState {
         case .ready:
@@ -350,7 +337,7 @@ struct OnboardingDownloadView: View {
     NavigationStack {
         OnboardingDownloadView(
             showOnboarding: .constant(true),
-            selectedModel: ModelConfiguration.llama3_2_1B
+            selectedModel: AIModelsRegistry.shared.defaultModel.configuration
         )
     }
 }

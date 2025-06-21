@@ -13,23 +13,30 @@ struct ModelPickerView: View {
     let selectedModel: MLXLMCommon.ModelConfiguration?
     let onSelect: (MLXLMCommon.ModelConfiguration) -> Void
     
+    private let registry = AIModelsRegistry.shared
+    
     var body: some View {
         List {
-            Section {
-                ForEach(modelManager.downloadedModels.sorted(), id: \.self) { modelName in
-                    if let model = MLXLMCommon.ModelConfiguration.getModelByName(modelName) {
-                        ModelPickerRow(
-                            model: model,
-                            isSelected: selectedModel?.name == model.name,
-                            onTap: {
-                                HapticManager.shared.selection()
-                                onSelect(model)
-                            }
-                        )
+            ForEach(ModelCategory.allCases, id: \.self) { category in
+                let downloadedModelsInCategory = registry.modelsForCategory(category)
+                    .filter { modelManager.isModelDownloaded($0.configuration) }
+                
+                if !downloadedModelsInCategory.isEmpty {
+                    Section {
+                        ForEach(downloadedModelsInCategory) { aiModel in
+                            ModelPickerRow(
+                                aiModel: aiModel,
+                                isSelected: selectedModel?.name == aiModel.configuration.name,
+                                onTap: {
+                                    HapticManager.shared.selection()
+                                    onSelect(aiModel.configuration)
+                                }
+                            )
+                        }
+                    } header: {
+                        Label(category.rawValue, systemImage: category.icon)
                     }
                 }
-            } header: {
-                Text("Downloaded Models")
             }
             
             if modelManager.downloadedModels.isEmpty {
@@ -56,7 +63,7 @@ struct ModelPickerView: View {
 }
 
 struct ModelPickerRow: View {
-    let model: MLXLMCommon.ModelConfiguration
+    let aiModel: AIModel
     let isSelected: Bool
     let onTap: () -> Void
     
@@ -64,13 +71,27 @@ struct ModelPickerRow: View {
         Button(action: onTap) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(formatModelName(model))
-                        .font(.headline)
-                        .foregroundStyle(.primary)
+                    HStack(spacing: 4) {
+                        Text(aiModel.displayName)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                        
+                        Text("• \(aiModel.parameterCount)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        
+                        Text(aiModel.quantization)
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.2))
+                            .cornerRadius(4)
+                    }
                     
-                    Text(model.name)
+                    Text(aiModel.description)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 
                 Spacer()
@@ -84,16 +105,6 @@ struct ModelPickerRow: View {
             .padding(.vertical, 4)
         }
         .buttonStyle(PlainButtonStyle())
-    }
-    
-    private func formatModelName(_ model: MLXLMCommon.ModelConfiguration) -> String {
-        model.name
-            .replacingOccurrences(of: "mlx-community/", with: "")
-            .replacingOccurrences(of: "-", with: " ")
-            .replacingOccurrences(of: "Instruct", with: "")
-            .replacingOccurrences(of: "4bit", with: "")
-            .replacingOccurrences(of: "8bit", with: "")
-            .trimmingCharacters(in: .whitespaces)
     }
 }
 

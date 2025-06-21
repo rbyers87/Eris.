@@ -17,20 +17,20 @@ struct DeviceUtils {
         case unknown
     }
     
-    enum ChipFamily {
-        case a13
-        case a14
-        case a15
-        case a16
-        case a17Pro
-        case a18
-        case a18Pro
-        case m1
-        case m2
-        case m3
-        case m4
-        case unsupported
-        case unknown
+    enum ChipFamily: Int {
+        case unsupported = 0
+        case unknown = 1
+        case a13 = 2
+        case a14 = 3
+        case a15 = 4
+        case a16 = 5
+        case a17Pro = 6
+        case a18 = 7
+        case a18Pro = 8
+        case m1 = 9
+        case m2 = 10
+        case m3 = 11
+        case m4 = 12
     }
     
     static var isSimulator: Bool {

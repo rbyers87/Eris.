@@ -12,12 +12,12 @@ struct ModelManagementView: View {
     @StateObject private var modelManager = ModelManager.shared
     @StateObject private var networkMonitor = NetworkMonitor.shared
     @State private var selectedModel: ModelConfiguration?
-    @State private var downloadingModels: Set<String> = []
-    @State private var downloadProgress: [String: Double] = [:]
     @State private var showCompatibilityWarning = false
-    @State private var modelToDownload: ModelConfiguration?
+    @State private var modelToDownload: AIModel?
     @State private var showCellularWarning = false
-    @State private var cellularDownloadModel: ModelConfiguration?
+    @State private var cellularDownloadModel: AIModel?
+    
+    private let registry = AIModelsRegistry.shared
     
     var body: some View {
         ScrollView {
@@ -69,48 +69,76 @@ struct ModelManagementView: View {
                         .padding(.bottom, 20)
                 }
                 
-                // Models list
-                VStack(spacing: 12) {
-                    ForEach(ModelConfiguration.availableModels, id: \.name) { model in
-                        ModelCard(
-                            model: model,
-                            isSelected: modelManager.activeModel?.name == model.name,
-                            isDownloaded: modelManager.isModelDownloaded(model),
-                            isDownloading: downloadingModels.contains(model.name),
-                            downloadProgress: downloadProgress[model.name] ?? 0.0,
-                            onSelect: {
-                                HapticManager.shared.selection()
-                                if modelManager.isModelDownloaded(model) {
-                                    modelManager.setActiveModel(model)
-                                }
-                            },
-                            onDownload: {
-                                HapticManager.shared.buttonTap()
-                                
-                                // Check for cellular warning first
-                                if networkMonitor.connectionType == .cellular {
-                                    cellularDownloadModel = model
-                                    showCellularWarning = true
-                                } else {
-                                    // Then check device compatibility
-                                    let compatibility = model.compatibilityForDevice()
-                                    if compatibility == .risky || compatibility == .notRecommended {
-                                        modelToDownload = model
-                                        showCompatibilityWarning = true
-                                    } else {
-                                        downloadModel(model)
-                                    }
-                                }
-                            },
-                            onDelete: {
-                                HapticManager.shared.warning()
-                                deleteModel(model)
+                // Models list by category
+                VStack(spacing: 20) {
+                    ForEach(ModelCategory.allCases, id: \.self) { category in
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Category header
+                            HStack(spacing: 8) {
+                                Image(systemName: category.icon)
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Text(category.rawValue)
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
                             }
-                        )
-                        .disabled(DeviceUtils.isSimulator || !DeviceUtils.canRunMLX)
+                            .padding(.horizontal, 20)
+                            
+                            Text(category.description)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 20)
+                            
+                            // Models in category
+                            ForEach(registry.modelsForCategory(category)) { aiModel in
+                                ModelCard(
+                                    aiModel: aiModel,
+                                    isSelected: modelManager.activeModel?.name == aiModel.configuration.name,
+                                    isDownloaded: modelManager.isModelDownloaded(aiModel.configuration),
+                                    isDownloading: modelManager.downloadingModels.contains(aiModel.configuration.name),
+                                    downloadProgress: modelManager.downloadProgress[aiModel.configuration.name] ?? 0.0,
+                                    hasActiveDownload: !modelManager.downloadingModels.isEmpty,
+                                    onSelect: {
+                                        HapticManager.shared.selection()
+                                        if modelManager.isModelDownloaded(aiModel.configuration) {
+                                            modelManager.setActiveModel(aiModel.configuration)
+                                        }
+                                    },
+                                    onDownload: {
+                                        // Don't allow download if another is in progress
+                                        guard modelManager.downloadingModels.isEmpty else {
+                                            HapticManager.shared.warning()
+                                            return
+                                        }
+                                        
+                                        HapticManager.shared.buttonTap()
+                                        
+                                        // Check for cellular warning first
+                                        if networkMonitor.connectionType == .cellular {
+                                            cellularDownloadModel = aiModel
+                                            showCellularWarning = true
+                                        } else {
+                                            // Then check device compatibility
+                                            let compatibility = registry.compatibilityForModel(aiModel)
+                                            if compatibility == .risky || compatibility == .notRecommended {
+                                                modelToDownload = aiModel
+                                                showCompatibilityWarning = true
+                                            } else {
+                                                downloadModel(aiModel.configuration)
+                                            }
+                                        }
+                                    },
+                                    onDelete: {
+                                        HapticManager.shared.warning()
+                                        deleteModel(aiModel.configuration)
+                                    }
+                                )
+                                .disabled(DeviceUtils.isSimulator || !DeviceUtils.canRunMLX)
+                                .padding(.horizontal, 20)
+                            }
+                        }
                     }
                 }
-                .padding(.horizontal, 20)
                 .padding(.bottom, 30)
             }
         }
@@ -122,20 +150,20 @@ struct ModelManagementView: View {
         }
         .alert("Compatibility Warning", isPresented: $showCompatibilityWarning) {
             Button("Download Anyway", role: .destructive) {
-                if let model = modelToDownload {
-                    downloadModel(model)
+                if let aiModel = modelToDownload {
+                    downloadModel(aiModel.configuration)
                 }
             }
             Button("Cancel", role: .cancel) {
                 modelToDownload = nil
             }
         } message: {
-            if let model = modelToDownload {
-                let compatibility = model.compatibilityForDevice()
+            if let aiModel = modelToDownload {
+                let compatibility = registry.compatibilityForModel(aiModel)
                 if compatibility == .notRecommended {
-                    Text("⚠️ This model has a HIGH RISK of crashing on your \(DeviceUtils.deviceDescription).\n\nIt requires more memory than your device typically has available. We strongly recommend choosing a smaller model.\n\nIf you proceed, the app will likely crash when trying to use this model.")
+                    Text("⚠️ This model has a HIGH RISK of crashing on your \(DeviceUtils.deviceDescription).\n\nIt requires more memory (~\(aiModel.estimatedRAMUsage)MB) than your device typically has available. We strongly recommend choosing a smaller model.\n\nIf you proceed, the app will likely crash when trying to use this model.")
                 } else {
-                    Text("⚠️ This model may experience issues on your \(DeviceUtils.deviceDescription).\n\nYou might encounter crashes or slow performance. For best results, close all other apps before using.\n\nConsider trying a smaller model if you experience problems.")
+                    Text("⚠️ This model may experience issues on your \(DeviceUtils.deviceDescription).\n\nIt requires ~\(aiModel.estimatedRAMUsage)MB of RAM. You might encounter crashes or slow performance. For best results, close all other apps before using.\n\nConsider trying a smaller model if you experience problems.")
                 }
             }
         }
@@ -148,59 +176,19 @@ struct ModelManagementView: View {
         }
     }
     
-    private func modelSize(for model: ModelConfiguration?) -> String {
-        guard let model = model else { return "" }
-        switch model.name {
-        case ModelConfiguration.llama3_2_1B.name:
-            return "0.7 GB"
-        case ModelConfiguration.llama3_2_3B.name:
-            return "1.8 GB"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_4bit.name:
-            return "1.0 GB"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_8bit.name:
-            return "1.9 GB"
-        case ModelConfiguration.qwen2_5_0_5B.name:
-            return "0.4 GB"
-        case ModelConfiguration.qwen2_5_1_5B.name:
-            return "1.0 GB"
-        case ModelConfiguration.qwen2_5_3B.name:
-            return "2.0 GB"
-        case ModelConfiguration.gemma2_2B.name:
-            return "1.3 GB"
-        case ModelConfiguration.phi3_5Mini.name:
-            return "2.5 GB"
-        case ModelConfiguration.codeLlama7B.name:
-            return "3.9 GB"
-        case ModelConfiguration.stableCode3B.name:
-            return "1.6 GB"
-        case ModelConfiguration.mistral7B.name:
-            return "4.0 GB"
-        default:
-            return "Size unknown"
-        }
-    }
     
     private func downloadModel(_ model: ModelConfiguration) {
-        downloadingModels.insert(model.name)
-        downloadProgress[model.name] = 0.0
-        
         Task {
             do {
                 try await modelManager.downloadModel(model) { progress in
-                    Task { @MainActor in
-                        downloadProgress[model.name] = progress.fractionCompleted
-                    }
+                    // Progress is already being tracked in ModelManager
                 }
                 
                 await MainActor.run {
-                    downloadingModels.remove(model.name)
-                    downloadProgress.removeValue(forKey: model.name)
                     HapticManager.shared.modelDownloadComplete()
                 }
             } catch {
                 await MainActor.run {
-                    downloadingModels.remove(model.name)
-                    downloadProgress.removeValue(forKey: model.name)
                     HapticManager.shared.error()
                 }
                 print("Download failed: \(error.localizedDescription)")
@@ -221,10 +209,10 @@ struct ModelManagementView: View {
         modelManager.deleteModel(model)
         if modelManager.activeModel?.name == model.name {
             // If deleting the active model, try to set another downloaded model as active
-            if let firstAvailableModel = ModelConfiguration.availableModels.first(where: { 
-                $0.name != model.name && modelManager.isModelDownloaded($0) 
+            if let firstAvailableModel = registry.allModels.first(where: { 
+                $0.configuration.name != model.name && modelManager.isModelDownloaded($0.configuration) 
             }) {
-                modelManager.setActiveModel(firstAvailableModel)
+                modelManager.setActiveModel(firstAvailableModel.configuration)
             }
             // If no other models are downloaded, activeModel will be cleared automatically
         }
@@ -265,75 +253,21 @@ struct DeviceCompatibilityWarning: View {
 }
 
 struct ModelCard: View {
-    let model: ModelConfiguration
+    let aiModel: AIModel
     let isSelected: Bool
     let isDownloaded: Bool
     let isDownloading: Bool
     let downloadProgress: Double
+    let hasActiveDownload: Bool
     let onSelect: () -> Void
     let onDownload: () -> Void
     let onDelete: () -> Void
     
-    private var modelSize: String {
-        switch model.name {
-        case ModelConfiguration.llama3_2_1B.name:
-            return "0.7 GB"
-        case ModelConfiguration.llama3_2_3B.name:
-            return "1.8 GB"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_4bit.name:
-            return "1.0 GB"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_8bit.name:
-            return "1.9 GB"
-        case ModelConfiguration.qwen2_5_0_5B.name:
-            return "0.4 GB"
-        case ModelConfiguration.qwen2_5_1_5B.name:
-            return "1.0 GB"
-        case ModelConfiguration.qwen2_5_3B.name:
-            return "2.0 GB"
-        case ModelConfiguration.gemma2_2B.name:
-            return "1.3 GB"
-        case ModelConfiguration.phi3_5Mini.name:
-            return "2.5 GB"
-        case ModelConfiguration.codeLlama7B.name:
-            return "3.9 GB"
-        case ModelConfiguration.stableCode3B.name:
-            return "1.6 GB"
-        case ModelConfiguration.mistral7B.name:
-            return "4.0 GB"
-        default:
-            return "Size unknown"
-        }
-    }
+    private let registry = AIModelsRegistry.shared
     
-    private var modelDescription: String {
-        switch model.name {
-        case ModelConfiguration.llama3_2_1B.name:
-            return "Fast and efficient for quick responses"
-        case ModelConfiguration.llama3_2_3B.name:
-            return "More capable for complex tasks"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_4bit.name:
-            return "Advanced reasoning with chain-of-thought"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_8bit.name:
-            return "Higher precision reasoning model"
-        case ModelConfiguration.qwen2_5_0_5B.name:
-            return "Ultra-lightweight for basic tasks"
-        case ModelConfiguration.qwen2_5_1_5B.name:
-            return "Balanced performance and efficiency"
-        case ModelConfiguration.qwen2_5_3B.name:
-            return "Strong multilingual capabilities"
-        case ModelConfiguration.gemma2_2B.name:
-            return "Google's efficient instruction model"
-        case ModelConfiguration.phi3_5Mini.name:
-            return "Microsoft's powerful small model"
-        case ModelConfiguration.codeLlama7B.name:
-            return "Specialized for code generation"
-        case ModelConfiguration.stableCode3B.name:
-            return "Efficient coding assistant"
-        case ModelConfiguration.mistral7B.name:
-            return "Versatile and powerful general model"
-        default:
-            return "AI language model"
-        }
+    private var modelSize: String {
+        let sizeInGB = Double(aiModel.estimatedRAMUsage) / 1024.0
+        return String(format: "%.1f GB", sizeInGB)
     }
     
     var body: some View {
@@ -341,71 +275,79 @@ struct ModelCard: View {
             Button(action: onSelect) {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text(formatModelName(model))
+                        HStack(spacing: 8) {
+                            Text(aiModel.displayName)
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             
-                            if model.name == ModelConfiguration.llama3_2_1B.name {
-                                Text("RECOMMENDED")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(Color.gray)
-                                    .cornerRadius(4)
-                            }
+                            // Parameters badge
+                            Text(aiModel.parameterCount)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
                             
-                            // Model category badges
-                            if model.name.contains("DeepSeek") {
-                                Text("REASONING")
+                            // Quantization badge
+                            Text(aiModel.quantization)
+                                .font(.caption2)
+                                .fontWeight(.medium)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.secondary.opacity(0.5))
+                                .cornerRadius(4)
+                            
+                            if aiModel.id == registry.defaultModel.id {
+                                Text("DEFAULT")
                                     .font(.caption2)
                                     .fontWeight(.bold)
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 2)
-                                    .background(Color.gray.opacity(0.7))
-                                    .cornerRadius(4)
-                            } else if model.name.contains("Code") || model.name.contains("stable-code") {
-                                Text("CODE")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(Color.gray.opacity(0.7))
+                                    .background(Color.blue)
                                     .cornerRadius(4)
                             }
                         }
                         
-                        Text(modelDescription)
+                        Text(aiModel.description)
                             .font(.caption)
                             .foregroundColor(.secondary)
+                            .lineLimit(2)
                         
                         // Compatibility indicator
+                        let compatibility = registry.compatibilityForModel(aiModel)
                         HStack(spacing: 4) {
-                            Image(systemName: model.compatibilityIcon)
+                            Image(systemName: compatibility.icon)
                                 .font(.caption)
-                                .foregroundColor(model.compatibilityColor)
-                            Text(model.compatibilityDescription)
+                                .foregroundColor(compatibility.color)
+                            Text(compatibility.description)
                                 .font(.caption)
-                                .foregroundColor(model.compatibilityColor)
+                                .foregroundColor(compatibility.color)
                             Spacer()
                         }
                         .padding(.top, 2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        HStack {
-                            Image(systemName: "internaldrive")
-                                .font(.caption)
-                            Text(modelSize)
-                                .font(.caption)
+                        HStack(spacing: 12) {
+                            // Storage size
+                            HStack(spacing: 4) {
+                                Image(systemName: "internaldrive")
+                                    .font(.caption)
+                                Text(modelSize)
+                                    .font(.caption)
+                            }
+                            
+                            // RAM usage
+                            HStack(spacing: 4) {
+                                Image(systemName: "memorychip")
+                                    .font(.caption)
+                                Text("~\(String(format: "%.1f", Double(aiModel.estimatedRAMUsage) / 1024.0))GB RAM")
+                                    .font(.caption)
+                            }
                         }
                         .foregroundColor(.secondary)
                         
                         // Warning for large models on iPhone
-                        if (model.name.contains("7B") || model.name.contains("7b")) && UIDevice.current.userInterfaceIdiom == .phone {
+                        if aiModel.parameterCount.contains("7B") && UIDevice.current.userInterfaceIdiom == .phone {
                             HStack(spacing: 4) {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .font(.caption2)
@@ -419,14 +361,9 @@ struct ModelCard: View {
                     Spacer()
                     
                     if isDownloading {
-                        VStack {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle())
-                                .scaleEffect(0.8)
-                            Text("\(Int(downloadProgress * 100))%")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(0.8)
                     } else if isDownloaded {
                         HStack(spacing: 12) {
                             if isSelected {
@@ -454,8 +391,9 @@ struct ModelCard: View {
                         Button(action: onDownload) {
                             Image(systemName: "arrow.down.circle.fill")
                                 .font(.title2)
-                                .foregroundColor(Color(UIColor.label))
+                                .foregroundColor(hasActiveDownload ? Color.gray : Color(UIColor.label))
                         }
+                        .disabled(hasActiveDownload)
                     }
                 }
                 .padding()
@@ -502,16 +440,6 @@ struct ModelCard: View {
                         .stroke(isSelected ? Color(UIColor.label) : Color.clear, lineWidth: 2)
                 )
         )
-    }
-    
-    private func formatModelName(_ model: ModelConfiguration) -> String {
-        model.name
-            .replacingOccurrences(of: "mlx-community/", with: "")
-            .replacingOccurrences(of: "-", with: " ")
-            .replacingOccurrences(of: "Instruct", with: "")
-            .replacingOccurrences(of: "4bit", with: "")
-            .replacingOccurrences(of: "8bit", with: "")
-            .trimmingCharacters(in: .whitespaces)
     }
 }
 

@@ -11,8 +11,10 @@ import MLXLMCommon
 struct OnboardingModelSetupView: View {
     @Binding var showOnboarding: Bool
     @StateObject private var modelManager = ModelManager.shared
-    @State private var selectedModel: ModelConfiguration?
+    @State private var selectedAIModel: AIModel?
     @State private var showCompatibilityWarning = false
+    
+    private let registry = AIModelsRegistry.shared
     
     var body: some View {
         VStack(spacing: 0) {
@@ -47,15 +49,15 @@ struct OnboardingModelSetupView: View {
             // Models list
             ScrollView {
                 VStack(spacing: 12) {
-                    ForEach(sortedModels(), id: \.name) { model in
+                    ForEach(sortedModels()) { aiModel in
                         ModelSelectionCard(
-                            model: model,
-                            isSelected: selectedModel?.name == model.name,
-                            isDownloaded: modelManager.isModelDownloaded(model),
-                            isRecommended: model.name == getRecommendedModelForDevice().name && model.compatibilityForDevice() == .recommended
+                            aiModel: aiModel,
+                            isSelected: selectedAIModel?.id == aiModel.id,
+                            isDownloaded: modelManager.isModelDownloaded(aiModel.configuration),
+                            isRecommended: aiModel.id == getRecommendedModelForDevice().id && registry.compatibilityForModel(aiModel) == .recommended
                         ) {
                             HapticManager.shared.selection()
-                            selectedModel = model
+                            selectedAIModel = aiModel
                         }
                         .disabled(!DeviceUtils.canRunMLX)
                     }
@@ -70,7 +72,7 @@ struct OnboardingModelSetupView: View {
                 NavigationLink(
                     destination: OnboardingDownloadView(
                         showOnboarding: $showOnboarding,
-                        selectedModel: selectedModel ?? ModelConfiguration.llama3_2_1B
+                        selectedModel: selectedAIModel?.configuration ?? registry.defaultModel.configuration
                     )
                 ) {
                     Text("Download Model")
@@ -78,12 +80,12 @@ struct OnboardingModelSetupView: View {
                         .foregroundColor(Color(UIColor.systemBackground))
                         .frame(maxWidth: .infinity)
                         .frame(height: 56)
-                        .background(selectedModel != nil ? Color(UIColor.label) : Color.gray)
+                        .background(selectedAIModel != nil ? Color(UIColor.label) : Color.gray)
                         .cornerRadius(16)
                 }
-                .disabled(selectedModel == nil)
+                .disabled(selectedAIModel == nil)
                 .simultaneousGesture(TapGesture().onEnded { _ in
-                    if selectedModel != nil {
+                    if selectedAIModel != nil {
                         HapticManager.shared.buttonTap()
                     }
                 })
@@ -94,45 +96,28 @@ struct OnboardingModelSetupView: View {
         .navigationBarBackButtonHidden(true)
         .onAppear {
             // Auto-select best model for device
-            if selectedModel == nil {
-                selectedModel = getRecommendedModelForDevice()
+            if selectedAIModel == nil {
+                selectedAIModel = getRecommendedModelForDevice()
             }
         }
     }
     
-    private func getRecommendedModelForDevice() -> ModelConfiguration {
-        let chipFamily = DeviceUtils.chipFamily
-        
-        switch chipFamily {
-        case .a13, .a14:
-            // iPhone 11, 12 - Recommend smallest model
-            return ModelConfiguration.qwen2_5_0_5B
-        case .a15:
-            // iPhone 13, 14 - Recommend 1B model
-            return ModelConfiguration.llama3_2_1B
-        case .a16, .a17Pro, .a18, .a18Pro:
-            // iPhone 14 Pro, 15, 16 - Can handle 1-3B models well
-            return ModelConfiguration.llama3_2_1B
-        case .m1, .m2, .m3, .m4:
-            // iPad M-series - Can handle larger models
-            return ModelConfiguration.llama3_2_3B
-        default:
-            return ModelConfiguration.llama3_2_1B
-        }
+    private func getRecommendedModelForDevice() -> AIModel {
+        let recommended = registry.recommendedModelsForDevice()
+        return recommended.first ?? registry.defaultModel
     }
     
-    private func sortedModels() -> [ModelConfiguration] {
-        let models = ModelConfiguration.availableModels
+    private func sortedModels() -> [AIModel] {
         let recommendedModel = getRecommendedModelForDevice()
         
-        return models.sorted { model1, model2 in
+        return registry.allModels.sorted { model1, model2 in
             // Put recommended model first
-            if model1.name == recommendedModel.name { return true }
-            if model2.name == recommendedModel.name { return false }
+            if model1.id == recommendedModel.id { return true }
+            if model2.id == recommendedModel.id { return false }
             
             // Then sort by compatibility
-            let compat1 = model1.compatibilityForDevice()
-            let compat2 = model2.compatibilityForDevice()
+            let compat1 = registry.compatibilityForModel(model1)
+            let compat2 = registry.compatibilityForModel(model2)
             
             if compat1 == .recommended && compat2 != .recommended { return true }
             if compat2 == .recommended && compat1 != .recommended { return false }
@@ -142,7 +127,8 @@ struct OnboardingModelSetupView: View {
             
             if compat1 == .risky && compat2 == .notRecommended { return true }
             
-            return false
+            // Finally sort by RAM usage
+            return model1.estimatedRAMUsage < model2.estimatedRAMUsage
         }
     }
 }
@@ -170,73 +156,19 @@ struct DeviceCompatibilityCard: View {
 }
 
 struct ModelSelectionCard: View {
-    let model: ModelConfiguration
+    let aiModel: AIModel
     let isSelected: Bool
     let isDownloaded: Bool
     let isRecommended: Bool
     let action: () -> Void
     
+    private let registry = AIModelsRegistry.shared
+    
     var modelSize: String {
-        switch model.name {
-        case ModelConfiguration.llama3_2_1B.name:
-            return "0.7 GB"
-        case ModelConfiguration.llama3_2_3B.name:
-            return "1.8 GB"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_4bit.name:
-            return "1.0 GB"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_8bit.name:
-            return "1.9 GB"
-        case ModelConfiguration.qwen2_5_0_5B.name:
-            return "0.4 GB"
-        case ModelConfiguration.qwen2_5_1_5B.name:
-            return "1.0 GB"
-        case ModelConfiguration.qwen2_5_3B.name:
-            return "2.0 GB"
-        case ModelConfiguration.gemma2_2B.name:
-            return "1.3 GB"
-        case ModelConfiguration.phi3_5Mini.name:
-            return "2.5 GB"
-        case ModelConfiguration.codeLlama7B.name:
-            return "3.9 GB"
-        case ModelConfiguration.stableCode3B.name:
-            return "1.6 GB"
-        case ModelConfiguration.mistral7B.name:
-            return "4.0 GB"
-        default:
-            return "Size unknown"
-        }
+        let sizeInGB = Double(aiModel.estimatedRAMUsage) / 1024.0
+        return String(format: "%.1f GB", sizeInGB)
     }
     
-    var modelDescription: String {
-        switch model.name {
-        case ModelConfiguration.llama3_2_1B.name:
-            return "Fast and efficient, perfect for quick conversations"
-        case ModelConfiguration.llama3_2_3B.name:
-            return "More capable, better for complex tasks"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_4bit.name:
-            return "Advanced reasoning with step-by-step thinking"
-        case ModelConfiguration.deepseekR1DistillQwen1_5B_8bit.name:
-            return "Higher precision reasoning model"
-        case ModelConfiguration.qwen2_5_0_5B.name:
-            return "Ultra-lightweight for basic tasks"
-        case ModelConfiguration.qwen2_5_1_5B.name:
-            return "Balanced performance and efficiency"
-        case ModelConfiguration.qwen2_5_3B.name:
-            return "Strong multilingual capabilities"
-        case ModelConfiguration.gemma2_2B.name:
-            return "Google's efficient instruction-following model"
-        case ModelConfiguration.phi3_5Mini.name:
-            return "Microsoft's powerful small language model"
-        case ModelConfiguration.codeLlama7B.name:
-            return "Specialized for code generation and analysis"
-        case ModelConfiguration.stableCode3B.name:
-            return "Efficient coding assistant for developers"
-        case ModelConfiguration.mistral7B.name:
-            return "Versatile and powerful for all tasks"
-        default:
-            return ""
-        }
-    }
     
     var body: some View {
         Button(action: action) {
@@ -244,7 +176,7 @@ struct ModelSelectionCard: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text(formatModelName(model))
+                            Text(aiModel.displayName)
                                 .font(.headline)
                                 .foregroundColor(.primary)
                             
@@ -259,8 +191,8 @@ struct ModelSelectionCard: View {
                                     .cornerRadius(4)
                             }
                             
-                            // Model category badges
-                            if model.name.contains("DeepSeek") {
+                            // Category badges
+                            if aiModel.category == .reasoning {
                                 Text("REASONING")
                                     .font(.caption2)
                                     .fontWeight(.bold)
@@ -269,7 +201,7 @@ struct ModelSelectionCard: View {
                                     .padding(.vertical, 2)
                                     .background(Color.gray.opacity(0.7))
                                     .cornerRadius(4)
-                            } else if model.name.contains("Code") || model.name.contains("stable-code") {
+                            } else if aiModel.category == .code {
                                 Text("CODE")
                                     .font(.caption2)
                                     .fontWeight(.bold)
@@ -283,20 +215,21 @@ struct ModelSelectionCard: View {
                             Spacer()
                         }
                         
-                        Text(modelDescription)
+                        Text(aiModel.description)
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .lineLimit(2)
                         
                         // Compatibility indicator
-                        let compatibility = model.compatibilityForDevice()
+                        let compatibility = registry.compatibilityForModel(aiModel)
                         HStack(spacing: 4) {
-                            Image(systemName: model.compatibilityIcon)
+                            Image(systemName: compatibility.icon)
                                 .font(.caption)
-                                .foregroundColor(model.compatibilityColor)
-                            Text(model.compatibilityDescription)
+                                .foregroundColor(compatibility.color)
+                            Text(compatibility.description)
                                 .font(.caption)
-                                .foregroundColor(model.compatibilityColor)
+                                .foregroundColor(compatibility.color)
                             Spacer()
                         }
                         .padding(.top, 2)
@@ -344,16 +277,6 @@ struct ModelSelectionCard: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
-    }
-    
-    private func formatModelName(_ model: ModelConfiguration) -> String {
-        let name = model.name
-            .replacingOccurrences(of: "mlx-community/", with: "")
-            .replacingOccurrences(of: "-", with: " ")
-            .replacingOccurrences(of: "Instruct", with: "")
-            .replacingOccurrences(of: "4bit", with: "")
-        
-        return name.trimmingCharacters(in: .whitespaces)
     }
 }
 

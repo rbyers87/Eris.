@@ -33,6 +33,9 @@ enum ModelDownloadError: LocalizedError {
 class ModelManager: ObservableObject {
     @Published var downloadedModels: Set<String> = []
     @Published var activeModel: ModelConfiguration?
+    @Published var activeAIModel: AIModel?
+    @Published var downloadingModels: Set<String> = []
+    @Published var downloadProgress: [String: Double] = [:]
     
     private let userDefaults = UserDefaults.standard
     private let downloadedModelsKey = "downloadedModels"
@@ -53,8 +56,9 @@ class ModelManager: ObservableObject {
     
     private func loadActiveModel() {
         if let modelName = userDefaults.string(forKey: activeModelKey),
-           let model = ModelConfiguration.getModelByName(modelName) {
-            activeModel = model
+           let aiModel = AIModelsRegistry.shared.modelByName(modelName) {
+            activeModel = aiModel.configuration
+            activeAIModel = aiModel
         }
     }
     
@@ -68,11 +72,16 @@ class ModelManager: ObservableObject {
     
     func setActiveModel(_ model: ModelConfiguration) {
         activeModel = model
+        activeAIModel = AIModelsRegistry.shared.modelByConfiguration(model)
         userDefaults.set(model.name, forKey: activeModelKey)
     }
     
     func downloadModel(_ model: ModelConfiguration, progressHandler: @escaping (Progress) -> Void) async throws {
         print("Starting download for model: \(model.name)")
+        
+        // Mark as downloading
+        downloadingModels.insert(model.name)
+        downloadProgress[model.name] = 0.0
         
         // Check network connectivity
         if !NetworkMonitor.shared.isConnected {
@@ -104,6 +113,9 @@ class ModelManager: ObservableObject {
                     configuration: model,
                     progressHandler: { progress in
                         print("Download progress: \(progress.fractionCompleted)")
+                        Task { @MainActor in
+                            self.downloadProgress[model.name] = progress.fractionCompleted
+                        }
                         progressHandler(progress)
                     }
                 )
@@ -118,6 +130,10 @@ class ModelManager: ObservableObject {
                 if activeModel == nil {
                     setActiveModel(model)
                 }
+                
+                // Clean up download state
+                downloadingModels.remove(model.name)
+                downloadProgress.removeValue(forKey: model.name)
                 
                 return // Success, exit the function
                 
@@ -134,12 +150,19 @@ class ModelManager: ObservableObject {
                    errorString.contains("offlineModeError") {
                     // This is a known MLX framework limitation on cellular
                     print("MLX Framework entered offline mode on cellular connection")
+                    // Clean up download state
+                    downloadingModels.remove(model.name)
+                    downloadProgress.removeValue(forKey: model.name)
                     throw ModelDownloadError.requiresWiFi
                 }
             }
         }
         
         // All retries failed
+        // Clean up download state
+        downloadingModels.remove(model.name)
+        downloadProgress.removeValue(forKey: model.name)
+        
         if let error = lastError {
             throw ModelDownloadError.downloadFailed(error.localizedDescription)
         } else {
@@ -172,8 +195,8 @@ class ModelManager: ObservableObject {
         userDefaults.removeObject(forKey: activeModelKey)
         
         // Delete all model files
-        for model in ModelConfiguration.availableModels {
-            deleteModelFiles(for: model)
+        for aiModel in AIModelsRegistry.shared.allModels {
+            deleteModelFiles(for: aiModel.configuration)
         }
     }
     

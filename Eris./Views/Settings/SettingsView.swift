@@ -55,7 +55,7 @@ struct SettingsView: View {
                                 SettingsRow(
                                     icon: "cpu",
                                     title: "Model Management",
-                                    subtitle: modelManager.activeModel?.name.replacingOccurrences(of: "mlx-community/", with: "") ?? "No model selected"
+                                    subtitle: modelManager.activeAIModel?.displayName ?? "No model selected"
                                 )
                             }
                             .buttonStyle(SettingsRowButtonStyle())

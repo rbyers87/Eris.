@@ -250,8 +250,8 @@ struct ChatView: View {
         }
         
         // Check if selected model is risky or not recommended for this device
-        if let activeModel = modelManager.activeModel {
-            let compatibility = activeModel.compatibilityForDevice()
+        if let activeAIModel = modelManager.activeAIModel {
+            let compatibility = AIModelsRegistry.shared.compatibilityForModel(activeAIModel)
             if compatibility == .risky || compatibility == .notRecommended {
                 showDeviceWarning = true
                 return

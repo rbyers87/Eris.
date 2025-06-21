@@ -186,8 +186,8 @@ struct DangerZoneView: View {
         
         Task {
             // Clear all models from ModelManager
-            for model in ModelConfiguration.availableModels {
-                modelManager.deleteModel(model)
+            for aiModel in AIModelsRegistry.shared.allModels {
+                modelManager.deleteModel(aiModel.configuration)
             }
             
             // Try to clear cache directories
@@ -217,8 +217,8 @@ struct DangerZoneView: View {
                 try modelContext.save()
                 
                 // Delete all models
-                for model in ModelConfiguration.availableModels {
-                    modelManager.deleteModel(model)
+                for aiModel in AIModelsRegistry.shared.allModels {
+                    modelManager.deleteModel(aiModel.configuration)
                 }
                 
                 // Clear all UserDefaults
