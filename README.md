@@ -131,6 +131,10 @@ View our roadmap and progress at [eris.natxo.dev/roadmap](https://eris.natxo.dev
 - [ ] Image support in conversations
 - [ ] Native macOS app (not iPad port)
 
+## Community
+
+Join our Discord community for support, discussions, and updates: [https://discord.gg/nr2qpfzCsd](https://discord.gg/nr2qpfzCsd)
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
