@@ -181,7 +181,125 @@ struct DeviceUtils {
         return false
     }
     
-    static var deviceDescription: String {
+    static var deviceModelName: String {
+        let model = deviceModel.lowercased()
+        
+        // iPhone models mapping
+        if model.contains("iphone10,3") || model.contains("iphone10,6") {
+            return "iPhone X"
+        }
+        if model.contains("iphone11,2") {
+            return "iPhone XS"
+        }
+        if model.contains("iphone11,4") || model.contains("iphone11,6") {
+            return "iPhone XS Max"
+        }
+        if model.contains("iphone11,8") {
+            return "iPhone XR"
+        }
+        if model.contains("iphone12,1") {
+            return "iPhone 11"
+        }
+        if model.contains("iphone12,3") {
+            return "iPhone 11 Pro"
+        }
+        if model.contains("iphone12,5") {
+            return "iPhone 11 Pro Max"
+        }
+        if model.contains("iphone12,8") {
+            return "iPhone SE (2nd gen)"
+        }
+        if model.contains("iphone13,1") {
+            return "iPhone 12 mini"
+        }
+        if model.contains("iphone13,2") {
+            return "iPhone 12"
+        }
+        if model.contains("iphone13,3") {
+            return "iPhone 12 Pro"
+        }
+        if model.contains("iphone13,4") {
+            return "iPhone 12 Pro Max"
+        }
+        if model.contains("iphone14,2") {
+            return "iPhone 13 Pro"
+        }
+        if model.contains("iphone14,3") {
+            return "iPhone 13 Pro Max"
+        }
+        if model.contains("iphone14,4") {
+            return "iPhone 13 mini"
+        }
+        if model.contains("iphone14,5") {
+            return "iPhone 13"
+        }
+        if model.contains("iphone14,6") {
+            return "iPhone SE (3rd gen)"
+        }
+        if model.contains("iphone14,7") {
+            return "iPhone 14"
+        }
+        if model.contains("iphone14,8") {
+            return "iPhone 14 Plus"
+        }
+        if model.contains("iphone15,2") {
+            return "iPhone 14 Pro"
+        }
+        if model.contains("iphone15,3") {
+            return "iPhone 14 Pro Max"
+        }
+        if model.contains("iphone15,4") {
+            return "iPhone 15"
+        }
+        if model.contains("iphone15,5") {
+            return "iPhone 15 Plus"
+        }
+        if model.contains("iphone16,1") {
+            return "iPhone 15 Pro"
+        }
+        if model.contains("iphone16,2") {
+            return "iPhone 15 Pro Max"
+        }
+        if model.contains("iphone17,1") {
+            return "iPhone 16"
+        }
+        if model.contains("iphone17,2") {
+            return "iPhone 16 Plus"
+        }
+        if model.contains("iphone17,3") {
+            return "iPhone 16 Pro"
+        }
+        if model.contains("iphone17,4") {
+            return "iPhone 16 Pro Max"
+        }
+        
+        // iPad models mapping
+        if model.contains("ipad13,4") || model.contains("ipad13,5") ||
+           model.contains("ipad13,6") || model.contains("ipad13,7") {
+            return "iPad Pro (M1)"
+        }
+        if model.contains("ipad13,8") || model.contains("ipad13,9") ||
+           model.contains("ipad13,10") || model.contains("ipad13,11") {
+            return "iPad Air (M1)"
+        }
+        if model.contains("ipad14,3") || model.contains("ipad14,4") ||
+           model.contains("ipad14,5") || model.contains("ipad14,6") {
+            return "iPad Pro (M2)"
+        }
+        if model.contains("ipad14,8") || model.contains("ipad14,9") {
+            return "iPad Air (M2)"
+        }
+        if model.contains("ipad16,3") || model.contains("ipad16,4") ||
+           model.contains("ipad16,5") || model.contains("ipad16,6") {
+            return "iPad Pro (M4)"
+        }
+        
+        // Simulator
+        if isSimulator {
+            return "Simulator"
+        }
+        
+        // Default to generic names
         switch deviceType {
         case .iPhone:
             return "iPhone"
@@ -190,8 +308,12 @@ struct DeviceUtils {
         case .mac:
             return "Mac"
         case .unknown:
-            return "Unknown Device"
+            return deviceModel
         }
+    }
+    
+    static var deviceDescription: String {
+        return deviceModelName
     }
     
     static var chipDescription: String {

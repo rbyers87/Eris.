@@ -38,7 +38,7 @@ struct SettingsView: View {
                         Text("Eris.")
                             .font(.title2)
                             .fontWeight(.bold)
-                        Text("Version 1.0.0")
+                        Text("Version \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
