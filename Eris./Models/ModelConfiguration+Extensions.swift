@@ -7,6 +7,7 @@
 
 import Foundation
 import MLXLMCommon
+import SwiftUI
 
 public extension ModelConfiguration {
     // Llama Models
@@ -87,5 +88,117 @@ public extension ModelConfiguration {
     
     static func getModelByName(_ name: String) -> ModelConfiguration? {
         availableModels.first { $0.name == name }
+    }
+    
+    enum ModelCompatibility {
+        case recommended
+        case compatible
+        case risky
+        case notRecommended
+    }
+    
+    func compatibilityForDevice() -> ModelCompatibility {
+        let chipFamily = DeviceUtils.chipFamily
+        let modelSize = getModelSizeCategory()
+        
+        switch chipFamily {
+        case .a13, .a14:
+            // iPhone 11, 12 - 4GB RAM
+            switch modelSize {
+            case .tiny:
+                return .compatible
+            case .small:
+                return .risky
+            case .medium, .large:
+                return .notRecommended
+            }
+        case .a15:
+            // iPhone 13, 14 - 6GB RAM
+            switch modelSize {
+            case .tiny:
+                return .recommended
+            case .small:
+                return .compatible
+            case .medium:
+                return .risky
+            case .large:
+                return .notRecommended
+            }
+        case .a16, .a17Pro, .a18, .a18Pro:
+            // iPhone 14 Pro, 15, 16 - 6-8GB RAM
+            switch modelSize {
+            case .tiny, .small:
+                return .recommended
+            case .medium:
+                return .compatible
+            case .large:
+                return .risky
+            }
+        case .m1, .m2, .m3, .m4:
+            // iPad M-series - 8GB+ RAM
+            return .recommended
+        default:
+            return .notRecommended
+        }
+    }
+    
+    private enum ModelSizeCategory {
+        case tiny   // < 1B
+        case small  // 1-2B
+        case medium // 2-4B
+        case large  // 4B+
+    }
+    
+    private func getModelSizeCategory() -> ModelSizeCategory {
+        let modelName = self.name.lowercased()
+        
+        if modelName.contains("0.5b") || modelName.contains("0_5b") {
+            return .tiny
+        } else if modelName.contains("1b") || modelName.contains("1.5b") || modelName.contains("1_5b") {
+            return .small
+        } else if modelName.contains("2b") || modelName.contains("3b") {
+            return .medium
+        } else {
+            return .large
+        }
+    }
+    
+    var compatibilityDescription: String {
+        switch compatibilityForDevice() {
+        case .recommended:
+            return "Recommended for your device"
+        case .compatible:
+            return "Compatible with your device"
+        case .risky:
+            return "May experience issues"
+        case .notRecommended:
+            return "Not recommended - High crash risk"
+        }
+    }
+    
+    var compatibilityIcon: String {
+        switch compatibilityForDevice() {
+        case .recommended:
+            return "checkmark.circle.fill"
+        case .compatible:
+            return "checkmark.circle"
+        case .risky:
+            return "exclamationmark.triangle.fill"
+        case .notRecommended:
+            return "xmark.circle.fill"
+        }
+    }
+    
+    var compatibilityColor: Color {
+        switch compatibilityForDevice() {
+        case .recommended:
+            return .green
+        case .compatible:
+            return .blue
+        case .risky:
+            return .orange
+        case .notRecommended:
+            return .red
+        }
     }
 }

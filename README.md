@@ -30,10 +30,14 @@ Eris is a private AI chat application that runs entirely on your device using Ap
 ## Requirements
 
 ### For Users
-- iPhone with A12 Bionic chip or newer (iPhone XS/XR and later)
-- iPad with A12 Bionic chip or newer
+- iPhone with A13 Bionic chip or newer with 6GB+ RAM (iPhone 11 Pro/Pro Max, SE 2nd gen, 12 series and later)
+- iPad with M1 chip or newer (iPad Pro/Air with M1, M2, or M4)
 - iOS 17.6+ / iPadOS 17.6+
 - ~2-8GB free storage per model
+
+### Compatible Devices
+✅ **iPhone**: 11 Pro, 11 Pro Max, SE (2nd gen), 12 series, 13 series, 14 series, 15 series, 16 series  
+❌ **Not Compatible**: iPhone 11 (base model), iPhone X, XS, XS Max, XR, and older models
 
 ### For Developers
 - Apple Silicon Mac (M1, M2, M3, M4)
@@ -41,7 +45,7 @@ Eris is a private AI chat application that runs entirely on your device using Ap
 - Xcode 15.0+
 - Physical iPhone/iPad for testing (see note below)
 
-⚠️ **Important Development Note**: iOS Simulators are not supported as MLX requires actual hardware acceleration. You'll need a physical iPhone or iPad with A12 chip or newer for testing and debugging.
+⚠️ **Important Development Note**: iOS Simulators are not supported as MLX requires actual hardware acceleration with Metal 3 support. You'll need a physical iPhone or iPad with A13 chip or newer for testing and debugging.
 
 ## Installation
 

@@ -67,10 +67,26 @@ class LLMEvaluator: ObservableObject {
             loadState = .loading
             isLoadingModel = true
             
-            // Limit GPU memory cache
-            MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
+            // Adjust GPU memory cache based on device
+            let cacheLimit = getCacheLimitForDevice()
+            MLX.GPU.set(cacheLimit: cacheLimit)
+            print("GPU cache limit set to: \(cacheLimit / 1024 / 1024)MB")
             
             do {
+                // For low-memory devices, use compatibility mode
+                if DeviceUtils.chipFamily == .a13 || DeviceUtils.chipFamily == .a14 {
+                    print("⏳ Using compatibility mode for limited memory device...")
+                    
+                    // Force memory cleanup
+                    MemoryManager.shared.performLowMemoryCleanup()
+                    
+                    // Wait for system to stabilize
+                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    
+                    // Set minimal cache
+                    MLX.GPU.set(cacheLimit: 16 * 1024 * 1024) // 16MB minimum
+                }
+                
                 let modelContainer = try await LLMModelFactory.shared.loadContainer(
                     configuration: modelConfiguration
                 ) { progress in
@@ -88,6 +104,17 @@ class LLMEvaluator: ObservableObject {
             } catch {
                 loadState = .failed(error)
                 isLoadingModel = false
+                
+                // Log detailed error information
+                print("❌ Failed to load model: \(error)")
+                
+                // Check if it's a Metal compilation error
+                let errorDescription = error.localizedDescription.lowercased()
+                if errorDescription.contains("metal") || errorDescription.contains("kernel") || errorDescription.contains("xpc_error") {
+                    print("⚠️ Metal compilation error detected. This may be due to memory constraints.")
+                    print("💡 Try closing other apps and restarting the device.")
+                }
+                
                 throw error
             }
             
@@ -105,6 +132,35 @@ class LLMEvaluator: ObservableObject {
     
     func stopGeneration() {
         cancellationToken.cancel()
+    }
+    
+    private func getCacheLimitForDevice() -> Int {
+        // Get device info
+        let deviceModel = DeviceUtils.deviceModel
+        let chipFamily = DeviceUtils.chipFamily
+        
+        // Base cache sizes in MB
+        let baseCacheSize: Int
+        
+        switch chipFamily {
+        case .a13, .a14:
+            // iPhone 11, 12 series - 4GB RAM devices
+            baseCacheSize = 64
+        case .a15:
+            // iPhone 13, 14 series - 6GB RAM devices
+            baseCacheSize = 128
+        case .a16, .a17Pro, .a18, .a18Pro:
+            // iPhone 14 Pro, 15, 16 series - 6-8GB RAM devices
+            baseCacheSize = 256
+        case .m1, .m2, .m3, .m4:
+            // iPad with M chips - 8GB+ RAM
+            baseCacheSize = 512
+        default:
+            // Conservative default
+            baseCacheSize = 32
+        }
+        
+        return baseCacheSize * 1024 * 1024
     }
     
     func generate(thread: Thread, systemPrompt: String = "You are a helpful assistant.") async -> String {
@@ -180,7 +236,18 @@ class LLMEvaluator: ObservableObject {
             output = result.output
             
         } catch {
-            output = "Error: \(error.localizedDescription)"
+            // Provide more helpful error messages
+            let errorDescription = error.localizedDescription.lowercased()
+            
+            if errorDescription.contains("metal") || errorDescription.contains("kernel") || errorDescription.contains("xpc_error") {
+                output = "Error: Unable to load model due to memory constraints. Please try:\n1. Close other apps\n2. Restart your device\n3. Try a smaller model (0.5B or 1B)"
+            } else if errorDescription.contains("memory") {
+                output = "Error: Out of memory. Please close other apps and try again."
+            } else {
+                output = "Error: \(error.localizedDescription)"
+            }
+            
+            print("❌ Generation error: \(error)")
         }
         
         running = false

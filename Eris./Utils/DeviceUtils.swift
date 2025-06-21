@@ -71,10 +71,28 @@ struct DeviceUtils {
     static var chipFamily: ChipFamily {
         let model = deviceModel.lowercased()
         
+        // iPhone models with incompatible chips
+        // A11 - iPhone X
+        if model.contains("iphone10,3") || model.contains("iphone10,6") {
+            return .unsupported
+        }
+        // A12 - iPhone XS, XS Max, XR
+        if model.contains("iphone11,2") || model.contains("iphone11,4") || 
+           model.contains("iphone11,6") || model.contains("iphone11,8") {
+            return .unsupported
+        }
+        
         // iPhone models with compatible chips
-        // A13 - iPhone 11 series
-        if model.contains("iphone12,1") || model.contains("iphone12,3") || model.contains("iphone12,5") {
+        // A13 - Only iPhone 11 Pro, 11 Pro Max, and SE 2nd gen (NOT base iPhone 11)
+        // iPhone 11 (iPhone12,1) is excluded due to insufficient memory
+        if model.contains("iphone12,3") || model.contains("iphone12,5") || 
+           model.contains("iphone12,8") {
             return .a13
+        }
+        
+        // iPhone 11 base model - NOT SUPPORTED
+        if model.contains("iphone12,1") {
+            return .unsupported
         }
         // A14 - iPhone 12 series
         if model.contains("iphone13,1") || model.contains("iphone13,2") || 
@@ -252,7 +270,7 @@ struct DeviceUtils {
         } else if isSimulator {
             return "Simulator detected. MLX models require real Apple Silicon hardware."
         } else {
-            return "Your device doesn't support MLX models. MLX requires devices with Metal 3 support (A13 chip or later)."
+            return "Your device doesn't support MLX models. MLX requires 6GB+ RAM and Metal 3 support (iPhone 11 Pro/SE 2nd gen or newer)."
         }
     }
     

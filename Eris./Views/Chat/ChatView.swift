@@ -25,6 +25,7 @@ struct ChatView: View {
     @State private var showModelPicker = false
     @State private var lastHapticTokenCount = 0
     @State private var isScrolledToBottom = true
+    @State private var showDeviceWarning = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -207,6 +208,14 @@ struct ChatView: View {
         } message: {
             Text("Please download and select a model before chatting.")
         }
+        .alert("Device Limitations", isPresented: $showDeviceWarning) {
+            Button("Try Anyway") {
+                actualSendMessage()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This model may have issues on your \(DeviceUtils.deviceDescription). For best results:\n\n• Close all other apps\n• Restart your device if needed\n• Consider using a smaller model\n\nThe app may crash if memory is insufficient.")
+        }
         .onAppear {
             updateTitle()
         }
@@ -240,6 +249,19 @@ struct ChatView: View {
             return
         }
         
+        // Check if selected model is risky or not recommended for this device
+        if let activeModel = modelManager.activeModel {
+            let compatibility = activeModel.compatibilityForDevice()
+            if compatibility == .risky || compatibility == .notRecommended {
+                showDeviceWarning = true
+                return
+            }
+        }
+        
+        actualSendMessage()
+    }
+    
+    private func actualSendMessage() {
         // Check if thread is persisted, if not, insert it now
         if thread.modelContext == nil {
             modelContext.insert(thread)

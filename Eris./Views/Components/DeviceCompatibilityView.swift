@@ -51,7 +51,7 @@ struct DeviceCompatibilityView: View {
                         .font(.headline)
                     
                     VStack(alignment: .leading, spacing: 10) {
-                        DeviceRow(icon: "iphone", title: "iPhone", subtitle: "15 Pro, 15 Pro Max, 16 series")
+                        DeviceRow(icon: "iphone", title: "iPhone", subtitle: "11 Pro/Pro Max, SE 2nd gen, 12 series or newer")
                         DeviceRow(icon: "ipad", title: "iPad", subtitle: "M1/M2/M4 iPad Pro, M1/M2 iPad Air")
                         DeviceRow(icon: "macbook", title: "Mac", subtitle: "Any Mac with Apple Silicon")
                     }

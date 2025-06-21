@@ -13,6 +13,8 @@ struct ModelManagementView: View {
     @State private var selectedModel: ModelConfiguration?
     @State private var downloadingModels: Set<String> = []
     @State private var downloadProgress: [String: Double] = [:]
+    @State private var showCompatibilityWarning = false
+    @State private var modelToDownload: ModelConfiguration?
     
     var body: some View {
         ScrollView {
@@ -66,7 +68,13 @@ struct ModelManagementView: View {
                             },
                             onDownload: {
                                 HapticManager.shared.buttonTap()
-                                downloadModel(model)
+                                let compatibility = model.compatibilityForDevice()
+                                if compatibility == .risky || compatibility == .notRecommended {
+                                    modelToDownload = model
+                                    showCompatibilityWarning = true
+                                } else {
+                                    downloadModel(model)
+                                }
                             },
                             onDelete: {
                                 HapticManager.shared.warning()
@@ -85,6 +93,25 @@ struct ModelManagementView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             selectedModel = modelManager.activeModel
+        }
+        .alert("Compatibility Warning", isPresented: $showCompatibilityWarning) {
+            Button("Download Anyway", role: .destructive) {
+                if let model = modelToDownload {
+                    downloadModel(model)
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                modelToDownload = nil
+            }
+        } message: {
+            if let model = modelToDownload {
+                let compatibility = model.compatibilityForDevice()
+                if compatibility == .notRecommended {
+                    Text("⚠️ This model has a HIGH RISK of crashing on your \(DeviceUtils.deviceDescription).\n\nIt requires more memory than your device typically has available. We strongly recommend choosing a smaller model.\n\nIf you proceed, the app will likely crash when trying to use this model.")
+                } else {
+                    Text("⚠️ This model may experience issues on your \(DeviceUtils.deviceDescription).\n\nYou might encounter crashes or slow performance. For best results, close all other apps before using.\n\nConsider trying a smaller model if you experience problems.")
+                }
+            }
         }
     }
     
@@ -281,6 +308,18 @@ struct ModelCard: View {
                         Text(modelDescription)
                             .font(.caption)
                             .foregroundColor(.secondary)
+                        
+                        // Compatibility indicator
+                        HStack(spacing: 4) {
+                            Image(systemName: model.compatibilityIcon)
+                                .font(.caption)
+                                .foregroundColor(model.compatibilityColor)
+                            Text(model.compatibilityDescription)
+                                .font(.caption)
+                                .foregroundColor(model.compatibilityColor)
+                            Spacer()
+                        }
+                        .padding(.top, 2)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
                         HStack {

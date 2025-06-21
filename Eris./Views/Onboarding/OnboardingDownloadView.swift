@@ -16,6 +16,7 @@ struct OnboardingDownloadView: View {
     @State private var downloadProgress: Double = 0.0
     @State private var downloadState: DownloadState = .ready
     @State private var errorMessage: String?
+    @State private var showCompatibilityWarning = false
     
     enum DownloadState {
         case ready
@@ -79,6 +80,25 @@ struct OnboardingDownloadView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
                 
+                // Compatibility warning
+                if downloadState == .ready {
+                    let compatibility = selectedModel.compatibilityForDevice()
+                    if compatibility == .risky || compatibility == .notRecommended {
+                        HStack(spacing: 8) {
+                            Image(systemName: selectedModel.compatibilityIcon)
+                                .foregroundColor(selectedModel.compatibilityColor)
+                            Text(selectedModel.compatibilityDescription)
+                                .font(.caption)
+                                .foregroundColor(selectedModel.compatibilityColor)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(selectedModel.compatibilityColor.opacity(0.1))
+                        .cornerRadius(8)
+                        .padding(.top, 8)
+                    }
+                }
+                
                 if let error = errorMessage {
                     Text(error)
                         .font(.caption)
@@ -96,7 +116,12 @@ struct OnboardingDownloadView: View {
                 case .ready:
                     Button(action: {
                         HapticManager.shared.buttonTap()
-                        startDownload()
+                        let compatibility = selectedModel.compatibilityForDevice()
+                        if compatibility == .notRecommended {
+                            showCompatibilityWarning = true
+                        } else {
+                            startDownload()
+                        }
                     }) {
                         Text("Start Download")
                             .font(.headline)
@@ -158,9 +183,27 @@ struct OnboardingDownloadView: View {
         }
         .navigationBarBackButtonHidden(downloadState == .downloading || downloadState == .completed)
         .onAppear {
-            // Auto-start download if the model is already selected
+            // Check compatibility before auto-starting
+            let compatibility = selectedModel.compatibilityForDevice()
             if downloadState == .ready {
+                if compatibility == .risky || compatibility == .notRecommended {
+                    // Don't auto-start for risky models, let user decide
+                } else {
+                    startDownload()
+                }
+            }
+        }
+        .alert("Compatibility Warning", isPresented: $showCompatibilityWarning) {
+            Button("Download Anyway", role: .destructive) {
                 startDownload()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            let compatibility = selectedModel.compatibilityForDevice()
+            if compatibility == .notRecommended {
+                Text("⚠️ WARNING: High Crash Risk!\n\nThis model requires more memory than your \(DeviceUtils.deviceDescription) can reliably provide. The app will likely crash when trying to load this model.\n\nWe strongly recommend going back and selecting a smaller model (0.5B or 1B).")
+            } else {
+                Text("⚠️ This model may cause issues on your \(DeviceUtils.deviceDescription).\n\nYou might experience crashes or very slow performance. Make sure to close all other apps before proceeding.\n\nConsider selecting a smaller model for better stability.")
             }
         }
     }

@@ -56,8 +56,15 @@ class ModelManager: ObservableObject {
     func downloadModel(_ model: ModelConfiguration, progressHandler: @escaping (Progress) -> Void) async throws {
         print("Starting download for model: \(model.name)")
         
-        // Set cache limit
-        MLX.GPU.set(cacheLimit: 20 * 1024 * 1024)
+        // Set cache limit based on device
+        let cacheLimit: Int
+        switch DeviceUtils.chipFamily {
+        case .a13, .a14:
+            cacheLimit = 32 * 1024 * 1024 // 32MB for download phase
+        default:
+            cacheLimit = 64 * 1024 * 1024 // 64MB for other devices
+        }
+        MLX.GPU.set(cacheLimit: cacheLimit)
         
         do {
             // Download the model

@@ -47,12 +47,12 @@ struct OnboardingModelSetupView: View {
             // Models list
             ScrollView {
                 VStack(spacing: 12) {
-                    ForEach(ModelConfiguration.availableModels, id: \.name) { model in
+                    ForEach(sortedModels(), id: \.name) { model in
                         ModelSelectionCard(
                             model: model,
                             isSelected: selectedModel?.name == model.name,
                             isDownloaded: modelManager.isModelDownloaded(model),
-                            isRecommended: model.name == ModelConfiguration.llama3_2_1B.name
+                            isRecommended: model.name == getRecommendedModelForDevice().name && model.compatibilityForDevice() == .recommended
                         ) {
                             HapticManager.shared.selection()
                             selectedModel = model
@@ -93,10 +93,56 @@ struct OnboardingModelSetupView: View {
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {
-            // Auto-select recommended model
+            // Auto-select best model for device
             if selectedModel == nil {
-                selectedModel = ModelConfiguration.llama3_2_1B
+                selectedModel = getRecommendedModelForDevice()
             }
+        }
+    }
+    
+    private func getRecommendedModelForDevice() -> ModelConfiguration {
+        let chipFamily = DeviceUtils.chipFamily
+        
+        switch chipFamily {
+        case .a13, .a14:
+            // iPhone 11, 12 - Recommend smallest model
+            return ModelConfiguration.qwen2_5_0_5B
+        case .a15:
+            // iPhone 13, 14 - Recommend 1B model
+            return ModelConfiguration.llama3_2_1B
+        case .a16, .a17Pro, .a18, .a18Pro:
+            // iPhone 14 Pro, 15, 16 - Can handle 1-3B models well
+            return ModelConfiguration.llama3_2_1B
+        case .m1, .m2, .m3, .m4:
+            // iPad M-series - Can handle larger models
+            return ModelConfiguration.llama3_2_3B
+        default:
+            return ModelConfiguration.llama3_2_1B
+        }
+    }
+    
+    private func sortedModels() -> [ModelConfiguration] {
+        let models = ModelConfiguration.availableModels
+        let recommendedModel = getRecommendedModelForDevice()
+        
+        return models.sorted { model1, model2 in
+            // Put recommended model first
+            if model1.name == recommendedModel.name { return true }
+            if model2.name == recommendedModel.name { return false }
+            
+            // Then sort by compatibility
+            let compat1 = model1.compatibilityForDevice()
+            let compat2 = model2.compatibilityForDevice()
+            
+            if compat1 == .recommended && compat2 != .recommended { return true }
+            if compat2 == .recommended && compat1 != .recommended { return false }
+            
+            if compat1 == .compatible && compat2 == .risky { return true }
+            if compat1 == .compatible && compat2 == .notRecommended { return true }
+            
+            if compat1 == .risky && compat2 == .notRecommended { return true }
+            
+            return false
         }
     }
 }
@@ -242,18 +288,18 @@ struct ModelSelectionCard: View {
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         
-                        // Warning for large models on iPhone
-                        if (model.name.contains("7B") || model.name.contains("7b")) && UIDevice.current.userInterfaceIdiom == .phone {
-                            HStack(spacing: 4) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .font(.caption2)
-                                Text("May run slowly on iPhone - better suited for Mac")
-                                    .font(.caption2)
-                                Spacer()
-                            }
-                            .foregroundColor(.orange)
-                            .padding(.top, 2)
+                        // Compatibility indicator
+                        let compatibility = model.compatibilityForDevice()
+                        HStack(spacing: 4) {
+                            Image(systemName: model.compatibilityIcon)
+                                .font(.caption)
+                                .foregroundColor(model.compatibilityColor)
+                            Text(model.compatibilityDescription)
+                                .font(.caption)
+                                .foregroundColor(model.compatibilityColor)
+                            Spacer()
                         }
+                        .padding(.top, 2)
                     }
                     
                     Spacer()
