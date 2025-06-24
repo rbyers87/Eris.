@@ -14,6 +14,7 @@ class Thread: Identifiable {
     var title: String
     var createdAt: Date
     var updatedAt: Date
+    var isPinned: Bool = false
     
     @Relationship(deleteRule: .cascade, inverse: \Message.thread)
     var messages: [Message] = []

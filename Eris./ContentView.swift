@@ -14,6 +14,18 @@ struct ContentView: View {
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
     @State private var showDeleteAlert = false
     @State private var threadToDelete: Thread?
+    @State private var showPinLimitAlert = false
+    
+    // Computed property to get sorted threads with pinned ones first
+    private var sortedThreads: [Thread] {
+        let pinned = threads.filter { $0.isPinned }.sorted { $0.updatedAt > $1.updatedAt }
+        let unpinned = threads.filter { !$0.isPinned }
+        return pinned + unpinned
+    }
+    
+    private var pinnedCount: Int {
+        threads.filter { $0.isPinned }.count
+    }
     
     private var shouldShowOnboarding: Bool {
         #if DEBUG
@@ -105,7 +117,7 @@ struct ContentView: View {
                     } else {
                         ScrollView {
                             VStack(spacing: 10) {
-                                ForEach(threads) { thread in
+                                ForEach(sortedThreads) { thread in
                                     NavigationLink(destination: ChatView(thread: thread)) {
                                         ThreadRow(thread: thread)
                                             .background(
@@ -115,6 +127,15 @@ struct ContentView: View {
                                     }
                                     .buttonStyle(ThreadButtonStyle())
                                     .contextMenu {
+                                        Button {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                                togglePin(for: thread)
+                                            }
+                                        } label: {
+                                            Label(thread.isPinned ? "Unpin" : "Pin", 
+                                                  systemImage: thread.isPinned ? "pin.slash" : "pin")
+                                        }
+                                        
                                         Button(role: .destructive) {
                                             threadToDelete = thread
                                             showDeleteAlert = true
@@ -125,6 +146,7 @@ struct ContentView: View {
                                     .simultaneousGesture(TapGesture().onEnded { _ in
                                         HapticManager.shared.selection()
                                     })
+                                    .animation(.spring(response: 0.35, dampingFraction: 0.85), value: thread.isPinned)
                                 }
                             }
                             .padding(.horizontal, 20)
@@ -177,7 +199,26 @@ struct ContentView: View {
             } message: {
                 Text("This action cannot be undone.")
             }
+            .alert("Pin Limit Reached", isPresented: $showPinLimitAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("You can only pin up to 3 chats. Unpin another chat first.")
+            }
         }
+    }
+    
+    private func togglePin(for thread: Thread) {
+        if thread.isPinned {
+            thread.isPinned = false
+        } else {
+            if pinnedCount >= 3 {
+                showPinLimitAlert = true
+                return
+            }
+            thread.isPinned = true
+        }
+        try? modelContext.save()
+        HapticManager.shared.impact(.light)
     }
     
     private func createNewThread() {
@@ -217,10 +258,23 @@ struct ThreadRow: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 6) {
-                Text(thread.title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(thread.title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    
+                    if thread.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(45))
+                            .transition(.asymmetric(
+                                insertion: .scale.combined(with: .opacity),
+                                removal: .scale.combined(with: .opacity)
+                            ))
+                    }
+                }
                 
                 if let lastMessage = thread.lastMessage {
                     Text(lastMessage.content)
