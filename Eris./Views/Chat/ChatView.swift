@@ -148,21 +148,7 @@ struct ChatView: View {
             }
             
             // Input area with model selector
-            HStack(alignment: .bottom, spacing: 12) {
-                // Model selector button
-                Button(action: {
-                    HapticManager.shared.selection()
-                    showModelPicker.toggle()
-                }) {
-                    Image(systemName: "chevron.up")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(Color(UIColor.label))
-                        .frame(width: 44, height: 44)
-                        .background(Color(UIColor.secondarySystemBackground))
-                        .clipShape(Circle())
-                }
-                
-                // Chat input
+            VStack(spacing: 0) {
                 ChatInputView(
                     text: $inputText,
                     isGenerating: llmEvaluator.running,
@@ -177,11 +163,15 @@ struct ChatView: View {
                 )
                 .focused($isInputFocused)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 12)
             .background(
-                Rectangle()
-                    .fill(Color(UIColor.systemBackground))
+                Color(UIColor.secondarySystemBackground)
+                    .clipShape(
+                        .rect(
+                            topLeadingRadius: 20,
+                            topTrailingRadius: 20
+                        )
+                    )
+                    .ignoresSafeArea(edges: .bottom)
                     .shadow(color: Color.black.opacity(0.05), radius: 5, y: -2)
             )
         }
@@ -190,13 +180,31 @@ struct ChatView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 if let activeModel = modelManager.activeModel {
-                    Text(formatModelName(activeModel))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.gray.opacity(0.1))
-                        .clipShape(Capsule())
+                    Button(action: {
+                        HapticManager.shared.selection()
+                        showModelPicker.toggle()
+                    }) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "cpu")
+                                .font(.system(size: 14, weight: .medium))
+                            Text(formatModelName(activeModel))
+                                .font(.system(size: 14, weight: .medium))
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundStyle(Color(UIColor.label))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(UIColor.tertiarySystemFill))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color(UIColor.separator).opacity(0.3), lineWidth: 1)
+                                )
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
             }
         }
@@ -512,11 +520,11 @@ struct ChatInputView: View {
     let onStop: () -> Void
     
     var body: some View {
-        HStack(alignment: .bottom, spacing: 0) {
+        HStack(alignment: .bottom, spacing: 12) {
             TextField("Message", text: $text, axis: .vertical)
                 .textFieldStyle(.plain)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .font(.system(size: 17))
+                .padding(.vertical, 12)
                 .lineLimit(1...5)
                 .disabled(isGenerating)
                 .onSubmit {
@@ -524,16 +532,13 @@ struct ChatInputView: View {
                         onSend()
                     }
                 }
-                .frame(minHeight: 48)
+                .frame(minHeight: 24)
             
             if isGenerating {
                 if isLoadingModel {
                     // Show loading indicator when model is loading
                     ProgressView()
-                        .scaleEffect(0.8)
-                        .frame(width: 24, height: 24)
-                        .padding(.trailing, 12)
-                        .padding(.bottom, 12)
+                        .frame(width: 32, height: 32)
                         .transition(.scale.combined(with: .opacity))
                 } else {
                     // Show stop button when generating text
@@ -544,11 +549,9 @@ struct ChatInputView: View {
                         Image(systemName: "stop.circle.fill")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 24, height: 24)
+                            .frame(width: 32, height: 32)
                             .foregroundStyle(Color.red.opacity(0.8))
                     }
-                    .padding(.trailing, 12)
-                    .padding(.bottom, 12)
                     .transition(.scale.combined(with: .opacity))
                 }
             } else {
@@ -559,18 +562,14 @@ struct ChatInputView: View {
                     Image(systemName: "arrow.up.circle.fill")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 24, height: 24)
+                        .frame(width: 32, height: 32)
                         .foregroundStyle(text.isEmpty ? Color.gray : Color(UIColor.label))
                 }
                 .disabled(text.isEmpty)
-                .padding(.trailing, 12)
-                .padding(.bottom, 12)
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(Color(UIColor.secondarySystemBackground))
-        )
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
     }
 }
 
