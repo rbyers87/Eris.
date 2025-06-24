@@ -285,6 +285,9 @@ struct ChatView: View {
         let prompt = inputText
         inputText = ""
         
+        // Dismiss keyboard
+        isInputFocused = false
+        
         // Generate response
         Task {
             // Haptic when AI starts generating
