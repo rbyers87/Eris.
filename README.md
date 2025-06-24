@@ -124,9 +124,11 @@ View our roadmap and progress at [eris.natxo.dev/roadmap](https://eris.natxo.dev
 
 ### Bug Fixes
 - [x] Chat name only applies after exiting and re-entering the chat
-- [ ] Improve Markdown formatting for AI responses
+- [x] Improve Markdown formatting for AI responses
+- [ ] Model testing across devices (continue testing all AI models on different devices and platforms for optimal performance)
 
 ### Upcoming Features
+- [ ] Shortcuts integration (Apple Shortcuts for automation and quick actions)
 - [ ] Voice input/dictation support (OpenAI Whisper or similar)
 - [ ] Image support in conversations
 - [ ] Native macOS app (not iPad port)
