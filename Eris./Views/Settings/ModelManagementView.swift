@@ -397,9 +397,11 @@ struct ModelCard: View {
                     }
                 }
                 .padding()
+                .contentShape(.rect)
             }
             .buttonStyle(PlainButtonStyle())
-            
+            .geometryGroup()
+
             if isDownloading && downloadProgress > 0 {
                 VStack(spacing: 8) {
                     ProgressView(value: downloadProgress)

@@ -241,12 +241,12 @@ import SafariServices
 
 struct SafariView: UIViewControllerRepresentable {
     let url: URL
-    
-    func makeUIViewController(context: Context) -> SFSafariViewController {
+
+    func makeUIViewController(context: UIViewControllerRepresentableContext<Self>) -> SFSafariViewController {
         return SFSafariViewController(url: url)
     }
-    
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: UIViewControllerRepresentableContext<SafariView>) {}
 }
 
 #Preview {
