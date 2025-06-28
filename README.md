@@ -73,16 +73,11 @@ Eris supports a variety of quantized models optimized for Apple Silicon:
 ### General Purpose
 - **Llama 3.2** (1B, 3B) - Meta's latest efficient models
 - **Qwen 2.5** (0.5B, 1.5B, 3B) - Alibaba's multilingual models
-- **Mistral 7B** - Popular open-source model
 - **Gemma 2** (2B) - Google's lightweight model
 - **Phi 3.5 Mini** - Microsoft's small but capable model
 
 ### Reasoning
 - **DeepSeek-R1-Distill-Qwen** (1.5B in 4bit/8bit) - Advanced reasoning capabilities
-
-### Code
-- **CodeLlama 7B** - Specialized for programming tasks
-- **StableCode 3B** - Efficient code generation
 
 ## Usage
 

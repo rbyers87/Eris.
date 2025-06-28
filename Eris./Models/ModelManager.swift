@@ -16,6 +16,9 @@ enum ModelDownloadError: LocalizedError {
     case requiresWiFi
     case downloadFailed(String)
     case networkUnavailable
+    case unsupportedModelType(String)
+    case modelNotFound(String)
+    case configurationError(String)
     
     var errorDescription: String? {
         switch self {
@@ -25,6 +28,12 @@ enum ModelDownloadError: LocalizedError {
             return "Download failed: \(message)"
         case .networkUnavailable:
             return "No internet connection available."
+        case .unsupportedModelType(let type):
+            return "This model uses '\(type)' architecture which is not supported by MLX framework. Please choose a different model."
+        case .modelNotFound(let name):
+            return "Model '\(name)' could not be found or accessed. It may have been moved or removed from the repository."
+        case .configurationError(let details):
+            return "Model configuration error: \(details)"
         }
     }
 }
@@ -76,8 +85,39 @@ class ModelManager: ObservableObject {
         userDefaults.set(model.name, forKey: activeModelKey)
     }
     
+    private func validateModel(_ model: ModelConfiguration) throws {
+        // List of known unsupported model types
+        let unsupportedModelTypes = ["stablelm", "stablecode"]
+        let modelNameLower = model.name.lowercased()
+        
+        // Check for known unsupported model types
+        for unsupported in unsupportedModelTypes {
+            if modelNameLower.contains(unsupported) {
+                throw ModelDownloadError.unsupportedModelType(unsupported)
+            }
+        }
+        
+        // List of known problematic models
+        let problematicModels = [
+            "mlx-community/CodeLlama-7b-Instruct-hf-4bit",
+            "mlx-community/stable-code-instruct-3b-4bit"
+        ]
+        
+        if problematicModels.contains(model.name) {
+            throw ModelDownloadError.modelNotFound(model.name)
+        }
+        
+        // Validate model is in our registry
+        guard AIModelsRegistry.shared.modelByConfiguration(model) != nil else {
+            throw ModelDownloadError.configurationError("Model not found in registry")
+        }
+    }
+    
     func downloadModel(_ model: ModelConfiguration, progressHandler: @escaping (Progress) -> Void) async throws {
         print("Starting download for model: \(model.name)")
+        
+        // Validate model before attempting download
+        try validateModel(model)
         
         // Mark as downloading
         downloadingModels.insert(model.name)
@@ -154,6 +194,35 @@ class ModelManager: ObservableObject {
                     downloadingModels.remove(model.name)
                     downloadProgress.removeValue(forKey: model.name)
                     throw ModelDownloadError.requiresWiFi
+                }
+                
+                // Check for unsupported model type errors
+                if errorMessage.contains("unsupported model type") || errorString.contains("stablelm") {
+                    let modelType = errorString.components(separatedBy: "\"").dropFirst().first ?? "unknown"
+                    print("Unsupported model type detected: \(modelType)")
+                    // Clean up download state
+                    downloadingModels.remove(model.name)
+                    downloadProgress.removeValue(forKey: model.name)
+                    throw ModelDownloadError.unsupportedModelType(modelType)
+                }
+                
+                // Check for missing config.json or model not found errors
+                if errorMessage.contains("config.json") || errorMessage.contains("couldn't be opened") ||
+                   errorMessage.contains("not found") || errorMessage.contains("404") {
+                    print("Model not found or configuration missing")
+                    // Clean up download state
+                    downloadingModels.remove(model.name)
+                    downloadProgress.removeValue(forKey: model.name)
+                    throw ModelDownloadError.modelNotFound(model.name)
+                }
+                
+                // Check for other configuration errors
+                if errorMessage.contains("configuration") || errorMessage.contains("invalid") {
+                    print("Model configuration error")
+                    // Clean up download state
+                    downloadingModels.remove(model.name)
+                    downloadProgress.removeValue(forKey: model.name)
+                    throw ModelDownloadError.configurationError(errorMessage)
                 }
             }
         }

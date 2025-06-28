@@ -174,17 +174,12 @@ class AIModelsRegistry {
             parameterCount: "3.8B",
             quantization: "4-bit"
         ),
-        AIModel(
-            id: "mistral7B",
-            configuration: ModelConfiguration(id: "mlx-community/Mistral-7B-Instruct-v0.3-4bit"),
-            category: .general,
-            displayName: "Mistral 7B",
-            description: "Popular open-source model with excellent performance",
-            estimatedRAMUsage: 5600,
-            minimumChipRequired: .a16,
-            parameterCount: "7B",
-            quantization: "4-bit"
-        ),
+        
+        // Code Models
+        // Note: CodeLlama and StableCode were removed due to MLX compatibility issues:
+        // - CodeLlama-7b: config.json not found error
+        // - StableCode-3b: "stablelm" model type not supported by MLX
+        // Currently no code-specific models available. Users can use general models for code tasks.
         
         // Reasoning Models
         AIModel(
@@ -208,30 +203,6 @@ class AIModelsRegistry {
             minimumChipRequired: .a15,
             parameterCount: "1.5B",
             quantization: "8-bit"
-        ),
-        
-        // Code Models
-        AIModel(
-            id: "codeLlama7B",
-            configuration: ModelConfiguration(id: "mlx-community/CodeLlama-7b-Instruct-hf-4bit"),
-            category: .code,
-            displayName: "CodeLlama 7B",
-            description: "Meta's specialized model for programming",
-            estimatedRAMUsage: 5600,
-            minimumChipRequired: .a16,
-            parameterCount: "7B",
-            quantization: "4-bit"
-        ),
-        AIModel(
-            id: "stableCode3B",
-            configuration: ModelConfiguration(id: "mlx-community/stable-code-instruct-3b-4bit"),
-            category: .code,
-            displayName: "StableCode 3B",
-            description: "Efficient code generation and completion",
-            estimatedRAMUsage: 2400,
-            minimumChipRequired: .a15,
-            parameterCount: "3B",
-            quantization: "4-bit"
         )
     ]
     
