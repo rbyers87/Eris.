@@ -1,51 +1,43 @@
-# Eris. 🪐
+# Eris Android 🪐
 
 <div align="center">
-  <img src="Eris./Assets.xcassets/AppIconNoBg.imageset/ChatGPT Image 19 jun 2025, 09_16_02.png" width="128" height="128" alt="Eris Icon">
+  <img src="app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" width="128" height="128" alt="Eris Icon">
   
-  **Chat with AI privately on your iPhone and iPad**
+  **Chat with AI privately on your Android device**
   
-  [![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20iPadOS-blue.svg)](https://developer.apple.com/xcode/)
-  [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org/)
-  [![MLX](https://img.shields.io/badge/MLX-Apple%20Silicon-green.svg)](https://github.com/ml-explore/mlx)
+  [![Platform](https://img.shields.io/badge/platform-Android-green.svg)](https://developer.android.com/studio/)
+  [![Kotlin](https://img.shields.io/badge/Kotlin-1.9+-purple.svg)](https://kotlinlang.org/)
+  [![Compose](https://img.shields.io/badge/Jetpack%20Compose-1.5+-blue.svg)](https://developer.android.com/jetpack/compose)
 </div>
 
 ## About
 
-Eris is a private AI chat application that runs entirely on your device using Apple's MLX framework. Named after the dwarf planet that challenged our understanding of the solar system, Eris challenges the notion that AI must live in the cloud.
+Eris Android is a private AI chat application that runs entirely on your device. This is the Android equivalent of the iOS Eris app, built with modern Android technologies including Jetpack Compose, Room, and TensorFlow Lite.
 
 ### Key Features
 
 - 🔒 **100% Private** - All conversations stay on your device
-- 🚀 **Blazing Fast** - Powered by Apple Silicon and MLX
-- 📡 **Offline First** - Works without internet connection
-- 🤖 **Multiple Models** - Support for Llama, Qwen, DeepSeek, and more
-- 🎨 **Native Design** - Built with SwiftUI for a seamless Apple experience
+- 🚀 **Fast Performance** - Optimized for Android devices
+- 📡 **Offline First** - Works without internet connection after setup
+- 🤖 **Multiple Models** - Support for various quantized AI models
+- 🎨 **Material Design** - Beautiful, native Android UI
 - 💾 **Local Storage** - Your data never leaves your device
-- 🎯 **Syntax Highlighting** - Beautiful code blocks with syntax highlighting for 100+ languages
-- 📝 **Markdown Support** - Full markdown rendering for formatted text, lists, tables, and more
-- 🌑 **Dark Mode** - Easy on your eyes, day or night
-- ☀️ **Light Mode** - Clean and bright interface for daytime use
+- 📝 **Markdown Support** - Rich text formatting in conversations
+- 🌙 **Dark/Light Theme** - Adaptive theming support
 
 ## Requirements
 
 ### For Users
-- iPhone with A13 Bionic chip or newer with 6GB+ RAM (iPhone 11 Pro/Pro Max, SE 2nd gen, 12 series and later)
-- iPad with M1 chip or newer (iPad Pro/Air with M1, M2, or M4)
-- iOS 17.6+ / iPadOS 17.6+
-- ~2-8GB free storage per model
-
-### Compatible Devices
-✅ **iPhone**: 11 Pro, 11 Pro Max, SE (2nd gen), 12 series, 13 series, 14 series, 15 series, 16 series  
-❌ **Not Compatible**: iPhone 11 (base model), iPhone X, XS, XS Max, XR, and older models
+- Android 8.0 (API level 26) or higher
+- 4GB+ RAM recommended
+- 2-8GB free storage per model
+- ARM64 processor recommended for best performance
 
 ### For Developers
-- Apple Silicon Mac (M1, M2, M3, M4)
-- macOS 14.0+
-- Xcode 15.0+
-- Physical iPhone/iPad for testing (see note below)
-
-⚠️ **Important Development Note**: iOS Simulators are not supported as MLX requires actual hardware acceleration with Metal 3 support. You'll need a physical iPhone or iPad with A13 chip or newer for testing and debugging.
+- Android Studio Hedgehog (2023.1.1) or newer
+- JDK 8 or higher
+- Android SDK 34
+- Gradle 8.2+
 
 ## Installation
 
@@ -53,100 +45,128 @@ Eris is a private AI chat application that runs entirely on your device using Ap
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/Natxo09/Eris.git
-cd Eris.
+git clone https://github.com/Natxo09/Eris-Android.git
+cd Eris-Android
 ```
 
-2. Open in Xcode:
-```bash
-open Eris..xcodeproj
-```
+2. Open in Android Studio:
+- Open Android Studio
+- Select "Open an existing project"
+- Navigate to the cloned directory
 
-3. Select your target device and build (⌘+B)
+3. Build and run:
+- Connect your Android device or start an emulator
+- Click "Run" or press Ctrl+R (Cmd+R on Mac)
 
-4. Run the app (⌘+R)
+## Architecture
 
-## Supported Models
+This app follows modern Android development best practices:
 
-Eris supports a variety of quantized models optimized for Apple Silicon:
-
-### General Purpose
-- **Llama 3.2** (1B, 3B) - Meta's latest efficient models
-- **Qwen 2.5** (0.5B, 1.5B, 3B) - Alibaba's multilingual models
-- **Gemma 2** (2B) - Google's lightweight model
-- **Phi 3.5 Mini** - Microsoft's small but capable model
-
-### Reasoning
-- **DeepSeek-R1-Distill-Qwen** (1.5B in 4bit/8bit) - Advanced reasoning capabilities
-
-## Usage
-
-1. **First Launch**: The app will guide you through downloading your first model
-2. **Chat**: Start conversations with your AI assistant
-3. **Switch Models**: Access different models from Settings → Model Management
-4. **Manage Data**: Delete chats or models from Settings → Danger Zone
-
-## Privacy & Security
-
-- ✅ No telemetry or analytics
-- ✅ No network requests except for model downloads
-- ✅ All data stored locally using SwiftData
-- ✅ Models downloaded from Hugging Face are cached locally
-- ✅ Full data deletion available in settings
-
-## Technical Details
-
-### Architecture
-- **UI**: SwiftUI
-- **ML Framework**: MLX / MLX Swift
-- **Data Persistence**: SwiftData
-- **Model Format**: Quantized models (4-bit/8-bit)
+### Tech Stack
+- **UI**: Jetpack Compose with Material 3
+- **Architecture**: MVVM with Repository pattern
+- **Database**: Room for local data persistence
+- **DI**: Hilt for dependency injection
+- **ML**: TensorFlow Lite and ONNX Runtime for AI models
+- **Navigation**: Navigation Compose
+- **Async**: Kotlin Coroutines and Flow
 
 ### Project Structure
 ```
-Eris./
-├── Models/          # Data models and ML integration
-├── Views/           # SwiftUI views
-│   ├── Chat/        # Chat interface
-│   ├── Settings/    # Settings and management
-│   └── Onboarding/  # First-run experience
-└── Utils/           # Utilities and helpers
+app/src/main/java/dev/natxo/eris/
+├── data/
+│   ├── database/         # Room database, DAOs, entities
+│   ├── models/           # Data models
+│   ├── repository/       # Repository implementations
+│   └── preferences/      # DataStore preferences
+├── ml/                   # Machine learning components
+├── ui/
+│   ├── screens/          # Compose screens
+│   ├── viewmodels/       # ViewModels
+│   ├── navigation/       # Navigation setup
+│   └── theme/            # Material theming
+└── di/                   # Hilt modules
 ```
 
-## Roadmap
+## Supported Models
 
-View our roadmap and progress at [eris.natxo.dev/roadmap](https://eris.natxo.dev/roadmap)
+The Android version supports quantized models optimized for mobile devices:
 
-### Bug Fixes
-- [x] Chat name only applies after exiting and re-entering the chat
-- [x] Improve Markdown formatting for AI responses
-- [ ] Model testing across devices (continue testing all AI models on different devices and platforms for optimal performance)
+### General Purpose
+- **Llama 3.2** (1B) - Meta's efficient model
+- **Qwen 2.5** (0.5B, 1.5B) - Alibaba's multilingual models
 
-### Upcoming Features
-- [ ] Shortcuts integration (Apple Shortcuts for automation and quick actions)
-- [ ] Voice input/dictation support (OpenAI Whisper or similar)
-- [ ] Image support in conversations
-- [ ] Native macOS app (not iPad port)
+### Reasoning
+- **DeepSeek-R1-Distill-Qwen** (1.5B) - Advanced reasoning capabilities
 
-## Community
+*Note: Model support is currently simulated. Real model integration requires implementing TensorFlow Lite or ONNX Runtime inference.*
 
-Join our Discord community for support, discussions, and updates: [https://discord.gg/nr2qpfzCsd](https://discord.gg/nr2qpfzCsd)
+## Key Differences from iOS Version
+
+### Technology Adaptations
+- **MLX → TensorFlow Lite/ONNX**: Android uses TensorFlow Lite and ONNX Runtime instead of Apple's MLX
+- **SwiftUI → Jetpack Compose**: Modern declarative UI framework for Android
+- **SwiftData → Room**: Type-safe database library for Android
+- **UserDefaults → DataStore**: Modern preferences storage
+
+### Android-Specific Features
+- **Material Design 3**: Native Android design language
+- **Dynamic Color**: Adapts to system wallpaper colors (Android 12+)
+- **Predictive Back**: Smooth navigation animations
+- **Edge-to-Edge**: Modern full-screen experience
+
+## Development Status
+
+This is a functional Android port with the following implementation status:
+
+✅ **Completed**:
+- Complete UI implementation with Jetpack Compose
+- Database layer with Room
+- Navigation and state management
+- Settings and preferences
+- Onboarding flow
+- Model management UI
+
+🚧 **In Progress**:
+- Real AI model integration (currently simulated)
+- Model downloading and caching
+- Advanced markdown rendering
+- Performance optimizations
+
+📋 **Planned**:
+- Voice input support
+- Export/import conversations
+- Widget support
+- Shortcuts integration
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Credits
+### Development Setup
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
-This project was inspired by [Fullmoon iOS](https://github.com/mainframecomputer/fullmoon-ios) and wouldn't be possible without:
+## Privacy & Security
 
-- Apple's [MLX](https://github.com/ml-explore/mlx) framework
-- The [Hugging Face](https://huggingface.co) community
-- All the open-source model creators
+- ✅ No telemetry or analytics
+- ✅ No network requests except for model downloads
+- ✅ All data stored locally using Room
+- ✅ Models cached locally after download
+- ✅ Full data deletion available in settings
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Inspired by the iOS Eris app
+- Built with modern Android development practices
+- Uses open-source libraries and frameworks
 
 ## Developer
 
@@ -154,14 +174,4 @@ Created by Ignacio Palacio - [natxo.dev](https://natxo.dev)
 
 ---
 
-### A Note About the Commit History 😴
-
-If you're browsing through the commit history and wondering why there are so many commits that just say "commit"... well, I have a confession to make. 
-
-I started this project late one night with zero intention of it becoming anything serious. It was supposed to be a quick experiment, maybe a few lines of code to test out MLX. But you know how it goes - "just one more feature" turned into "oh, this actually works!" which turned into "wait, people might actually use this."
-
-So there I was, half-asleep, committing code with the eloquence of a zombie: "commit", "commit", "commit". By the time I realized this was becoming a real project, the damage was done. My git history looks like I fell asleep on the keyboard with my finger on the enter key.
-
-I promise I'm usually better at commit messages. Usually. When I'm awake. ☕
-
-*PS: If you're a hiring manager reading this, I swear this isn't representative of my professional work. Please check out my other repos where I actually wrote meaningful commit messages like "fix: resolved null pointer exception in user authentication flow" instead of just "commit" 47 times in a row.*
+*This Android port maintains the privacy-first philosophy of the original iOS app while leveraging the best of Android's ecosystem.*
